@@ -1,0 +1,30 @@
+# env files — use explicit names, NOT wildcard
+.env
+.env.local
+.env*.local
+
+# SQLite — NEVER commit
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Secrets storage
+.secretdrop-store/
+
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+# typescript
+next-env.d.ts
