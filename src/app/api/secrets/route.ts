@@ -3,6 +3,7 @@ import { writeFile, mkdir, readdir, readFile, unlink, rmdir } from "fs/promises"
 import { existsSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
+import { requireAccount } from "@/lib/auth";
 
 const STORE_DIR = join(process.cwd(), ".secretdrop-store");
 
@@ -62,6 +63,12 @@ cleanupExpired();
 
 // ─── POST /api/secrets — Create a new secret ────────────────────────
 export async function POST(request: NextRequest) {
+  // Crear exige cuenta: abierto de par en par, esto es alojamiento anónimo de
+  // texto cifrado para cualquiera. Abrir un secreto NO la exige — ver
+  // /api/secrets/[id] — porque quien recibe el enlace no tiene por qué tenerla.
+  const unauthorized = await requireAccount();
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await request.json();
     const { ciphertext, iv, ttlHours, maxViews } = body as {
@@ -109,6 +116,10 @@ export async function POST(request: NextRequest) {
 
 // ─── GET /api/secrets — List active secrets (metadata only, no ciphertext) ─
 export async function GET() {
+  // El listado enseña los secretos vivos de esta instancia: solo con cuenta.
+  const unauthorized = await requireAccount();
+  if (unauthorized) return unauthorized;
+
   const now = Date.now();
   const store = getStore();
   const secrets = Array.from(store.values())
