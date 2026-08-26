@@ -15,8 +15,9 @@ export function SignOut({ email }: { email: string }) {
       </span>
       <button
         onClick={async () => {
-          await fetch("/api/auth/logout", { method: "POST" });
-          window.location.href = "/";
+          const res = await fetch("/api/auth/logout", { method: "POST" });
+          const { next } = await res.json().catch(() => ({ next: "/" }));
+          window.location.href = next ?? "/";
         }}
         className="rounded-lg border px-2.5 py-1.5 transition-colors"
         style={{ borderColor: "var(--kc-line)", color: "var(--kc-text-1)" }}

@@ -140,7 +140,7 @@ export function Tool() {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 py-8 sm:py-12 max-w-2xl mx-auto w-full">
+    <div className="kc-workspace flex-1 flex flex-col items-center px-4 py-8 sm:py-12 max-w-3xl mx-auto w-full">
       {/* Logo / Brand */}
       <div className="mb-8 w-full text-center">
         <h1 className="text-4xl sm:text-5xl font-bold mb-2">

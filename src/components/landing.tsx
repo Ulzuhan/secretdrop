@@ -12,7 +12,7 @@ import Link from "next/link";
  */
 export function Landing() {
   return (
-    <main className="flex-1">
+    <main className="kc-product-landing flex-1">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="mx-auto w-full max-w-5xl overflow-x-clip px-5 pt-12 pb-16 sm:pt-20 sm:pb-24">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
@@ -65,7 +65,7 @@ export function Landing() {
             How it works
           </h2>
 
-          <div className="mt-8 grid gap-8 sm:grid-cols-3">
+          <div className="kc-card-grid mt-8 grid gap-8 sm:grid-cols-3">
             {STEPS.map(({ n, title, body }) => (
               <div key={n}>
                 <span className="flex size-9 items-center justify-center rounded-xl bg-accent/10 font-mono text-sm text-accent">
@@ -85,7 +85,7 @@ export function Landing() {
           Why not just send it over chat
         </h2>
 
-        <div className="mt-8 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="kc-card-grid mt-8 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon, title, body }) => (
             <div key={title}>
               <div className="flex size-9 items-center justify-center rounded-xl bg-accent/10 text-lg">
