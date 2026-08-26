@@ -84,7 +84,7 @@ function base64Encode(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function base64Decode(b64: string): Uint8Array {
+function base64Decode(b64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -102,7 +102,7 @@ function base64UrlEncode(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function base64UrlDecode(b64url: string): Uint8Array {
+function base64UrlDecode(b64url: string): Uint8Array<ArrayBuffer> {
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
   const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
   return base64Decode(padded);

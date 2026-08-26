@@ -20,11 +20,13 @@ interface SecretMeta {
 }
 
 // ─── In-memory cache (for speed) backed by disk (for persistence) ─
+const globalStore = globalThis as typeof globalThis & {
+  __secretdrop_store__?: Map<string, SecretMeta>;
+};
+
 function getStore(): Map<string, SecretMeta> {
-  if (!(globalThis as any).__secretdrop_store__) {
-    (globalThis as any).__secretdrop_store__ = new Map();
-  }
-  return (globalThis as any).__secretdrop_store__;
+  globalStore.__secretdrop_store__ ??= new Map();
+  return globalStore.__secretdrop_store__;
 }
 
 // ─── Startup cleanup ────────────────────────────────────────────────

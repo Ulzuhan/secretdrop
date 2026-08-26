@@ -66,9 +66,14 @@ export function Tool() {
   }, []);
 
   useEffect(() => {
-    fetchSecrets();
+    // First fetch from a macrotask so the initial paint isn't blocked by a
+    // synchronous state update (react-hooks/set-state-in-effect).
+    const kickoff = setTimeout(fetchSecrets, 0);
     const interval = setInterval(fetchSecrets, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(kickoff);
+      clearInterval(interval);
+    };
   }, [fetchSecrets]);
 
   const createSecret = useCallback(async () => {
@@ -114,8 +119,8 @@ export function Tool() {
 
       setSecret("");
       fetchSecrets();
-    } catch (err: any) {
-      setError(err.message || "Failed to create secret");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create secret");
     } finally {
       setCreating(false);
     }

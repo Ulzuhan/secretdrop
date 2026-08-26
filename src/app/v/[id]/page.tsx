@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { decryptSecret } from "@/lib/crypto";
 
 interface SecretData {
@@ -35,26 +36,9 @@ export default function ViewSecretPage() {
   const [plaintext, setPlaintext] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [decryptionKey, setDecryptionKey] = useState<string>("");
   const [hasKey, setHasKey] = useState(true);
 
-  useEffect(() => {
-    // Extract the decryption key from the URL fragment (#key)
-    // The fragment is NEVER sent to the server — it only exists in the browser
-    const hash = window.location.hash.slice(1); // Remove the #
-
-    if (!hash) {
-      setHasKey(false);
-      setState("error");
-      setErrorMsg("No decryption key found in the URL. The link may be incomplete or corrupted.");
-      return;
-    }
-
-    setDecryptionKey(hash);
-    fetchAndDecrypt(hash);
-  }, [id]);
-
-  async function fetchAndDecrypt(key: string) {
+  const fetchAndDecrypt = useCallback(async (key: string) => {
     try {
       // 1. Fetch the encrypted secret from the server
       const res = await fetch(`/api/secrets/${id}`);
@@ -98,7 +82,29 @@ export default function ViewSecretPage() {
       setErrorMsg("Network error. Please check your connection and try again.");
       console.error("Fetch error:", err);
     }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    // Read the key and start fetching from a macrotask, not the effect body,
+    // so the first paint isn't blocked by a synchronous state update
+    // (react-hooks/set-state-in-effect).
+    const kickoff = setTimeout(() => {
+      // Extract the decryption key from the URL fragment (#key)
+      // The fragment is NEVER sent to the server — it only exists in the browser
+      const hash = window.location.hash.slice(1); // Remove the #
+
+      if (!hash) {
+        setHasKey(false);
+        setState("error");
+        setErrorMsg("No decryption key found in the URL. The link may be incomplete or corrupted.");
+        return;
+      }
+
+      void fetchAndDecrypt(hash);
+    }, 0);
+
+    return () => clearTimeout(kickoff);
+  }, [fetchAndDecrypt]);
 
   function copySecret() {
     navigator.clipboard.writeText(plaintext);
@@ -133,12 +139,12 @@ export default function ViewSecretPage() {
               Ask the sender to copy the complete link.
             </p>
           )}
-          <a
+          <Link
             href="/"
             className="inline-block bg-accent hover:bg-accent-hover text-white font-medium py-2.5 px-6 rounded-xl transition-all"
           >
             Create a New Secret
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -157,12 +163,12 @@ export default function ViewSecretPage() {
           <p className="text-muted text-sm">
             🔥 Burn after read — your security guarantee.
           </p>
-          <a
+          <Link
             href="/"
             className="inline-block bg-accent hover:bg-accent-hover text-white font-medium py-2.5 px-6 rounded-xl transition-all"
           >
             Create a New Secret
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -176,12 +182,12 @@ export default function ViewSecretPage() {
           <div className="text-5xl">⌛</div>
           <h2 className="text-xl font-bold text-foreground">Secret Expired</h2>
           <p className="text-muted">{errorMsg}</p>
-          <a
+          <Link
             href="/"
             className="inline-block bg-accent hover:bg-accent-hover text-white font-medium py-2.5 px-6 rounded-xl transition-all"
           >
             Create a New Secret
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -247,12 +253,12 @@ export default function ViewSecretPage() {
             </div>
           )}
 
-          <a
+          <Link
             href="/"
             className="block text-center text-muted hover:text-foreground transition-colors text-sm"
           >
             Create your own encrypted secret →
-          </a>
+          </Link>
         </div>
       </div>
     );

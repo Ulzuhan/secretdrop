@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, writeFile, unlink, rmdir, mkdir } from "fs/promises";
-import { existsSync } from "fs";
+import { readFile, writeFile, unlink, rmdir } from "fs/promises";
 import { join } from "path";
 
 const STORE_DIR = join(process.cwd(), ".secretdrop-store");
@@ -16,11 +15,13 @@ interface SecretMeta {
   burned: boolean;
 }
 
+const globalStore = globalThis as typeof globalThis & {
+  __secretdrop_store__?: Map<string, SecretMeta>;
+};
+
 function getStore(): Map<string, SecretMeta> {
-  if (!(globalThis as any).__secretdrop_store__) {
-    (globalThis as any).__secretdrop_store__ = new Map();
-  }
-  return (globalThis as any).__secretdrop_store__;
+  globalStore.__secretdrop_store__ ??= new Map();
+  return globalStore.__secretdrop_store__;
 }
 
 async function loadMeta(id: string): Promise<SecretMeta | null> {
