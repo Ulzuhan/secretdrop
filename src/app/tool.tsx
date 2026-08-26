@@ -140,22 +140,22 @@ export function Tool() {
   };
 
   return (
-    <div className="kc-workspace flex-1 flex flex-col items-center px-4 py-8 sm:py-12 max-w-3xl mx-auto w-full">
+    <div className="kc-workspace sd-workspace flex-1 flex flex-col items-center px-4 py-8 sm:py-12 max-w-5xl mx-auto w-full">
       {/* Logo / Brand */}
-      <div className="mb-8 w-full text-center">
+      <div className="sd-workspace-header mb-8 w-full text-center">
         <h1 className="text-4xl sm:text-5xl font-bold mb-2">
           <span className="text-accent">Secret</span>Drop
         </h1>
         <p className="text-muted text-sm sm:text-base">
-          Share secrets with end-to-end encryption. Burns after reading. 🔐🔥
+          End-to-end encrypted. Read only as many times as you allow.
         </p>
       </div>
 
       {/* Create Form */}
       {!result && (
-        <div className="w-full mb-8 space-y-4">
+        <div className="sd-compose w-full mb-8 space-y-4">
           {/* Secret Input */}
-          <div>
+          <div className="sd-secret-input">
             <label className="block text-sm font-medium text-muted mb-2">
               Your secret (password, token, API key,...)
             </label>
@@ -168,12 +168,12 @@ export function Tool() {
               className="w-full bg-surface border border-border rounded-2xl p-4 text-foreground placeholder:text-muted/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none font-mono text-sm"
             />
             <p className="text-xs text-muted mt-1.5">
-              🔒 Encrypted in your browser with AES-256-GCM. The key never touches the server.
+              Encrypted in this browser with AES-256-GCM. The key never touches the server.
             </p>
           </div>
 
           {/* TTL Selector */}
-          <div>
+          <div className="sd-setting">
             <label className="block text-sm font-medium text-muted mb-2">
               Self-destruct after
             </label>
@@ -201,7 +201,7 @@ export function Tool() {
           </div>
 
           {/* Max Views */}
-          <div>
+          <div className="sd-setting">
             <label className="block text-sm font-medium text-muted mb-2">
               Max views before burn
             </label>
@@ -224,7 +224,7 @@ export function Tool() {
 
           {/* Error */}
           {error && (
-            <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm text-center">
+            <div className="sd-compose-wide p-3 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm text-center">
               {error}
             </div>
           )}
@@ -233,18 +233,18 @@ export function Tool() {
           <button
             onClick={createSecret}
             disabled={creating || !secret.trim()}
-            className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3.5 px-5 rounded-xl transition-all active:scale-95"
+            className="sd-compose-wide sd-create w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3.5 px-5 rounded-xl transition-all active:scale-95"
           >
-            {creating ? "🔐 Encrypting..." : "✨ Create Encrypted Link"}
+            {creating ? "Encrypting…" : "Create encrypted link"}
           </button>
         </div>
       )}
 
       {/* Result Card */}
       {result && (
-        <div className="w-full space-y-4 mb-8">
+        <div className="sd-result w-full space-y-4 mb-8">
           <div className="bg-surface border border-border rounded-2xl p-6 text-center space-y-4">
-            <div className="text-4xl">✅</div>
+            <div className="sd-result-mark" aria-hidden>Ready</div>
             <div>
               <p className="text-foreground font-semibold text-lg">
                 Secret encrypted & ready to share
@@ -259,13 +259,13 @@ export function Tool() {
                 onClick={() => copyLink(result.url)}
                 className="flex-1 bg-accent hover:bg-accent-hover text-white font-medium py-3 px-5 rounded-xl transition-all active:scale-95"
               >
-                {copied ? "✓ Copied!" : "📋 Copy Link"}
+                {copied ? "Copied" : "Copy link"}
               </button>
               <button
                 onClick={reset}
                 className="flex-1 bg-surface-light hover:bg-border text-foreground font-medium py-3 px-5 rounded-xl transition-all"
               >
-                ✨ New Secret
+                New secret
               </button>
             </div>
 
@@ -282,11 +282,9 @@ export function Tool() {
       )}
 
       {/* Active Secrets List */}
-      <div className="w-full">
+      <div className="sd-active w-full">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">
-            🔑 Active Secrets
-          </h2>
+          <h2 className="text-lg font-semibold text-foreground">Active secrets</h2>
           <button
             onClick={fetchSecrets}
             className="text-muted hover:text-foreground transition-colors text-sm"
@@ -302,18 +300,18 @@ export function Tool() {
           </div>
         ) : secrets.length === 0 ? (
           <div className="text-center text-muted py-8 bg-surface rounded-2xl border border-border">
-            <div className="text-3xl mb-2">📭</div>
+            <div className="sd-empty-mark" aria-hidden>0</div>
             <p>No active secrets</p>
             <p className="text-sm mt-1">Create one above to share securely</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {secrets.map((s) => (
+            {secrets.map((s, index) => (
               <div
                 key={s.id}
-                className="flex items-center gap-4 p-4 bg-surface border border-border rounded-xl group"
+                className="sd-secret-row flex items-center gap-4 p-4 bg-surface border border-border rounded-xl group"
               >
-                <div className="text-2xl flex-shrink-0">🔐</div>
+                <div className="sd-secret-index flex-shrink-0" aria-hidden>{String(index + 1).padStart(2, "0")}</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-foreground font-medium truncate font-mono text-sm">
                     /v/{s.id}
@@ -334,8 +332,8 @@ export function Tool() {
       </div>
 
       {/* Security Info Footer */}
-      <div className="w-full mt-8 p-4 bg-surface/50 border border-border/50 rounded-xl text-xs text-muted space-y-2">
-        <p className="font-medium text-foreground/80">🛡️ How it works</p>
+      <div className="sd-security w-full mt-8 p-4 bg-surface/50 border border-border/50 rounded-xl text-xs text-muted space-y-2">
+        <p className="font-medium text-foreground/80">Security model</p>
         <p>• Your secret is encrypted <strong>in your browser</strong> with AES-256-GCM before it ever touches the server.</p>
         <p>• The decryption key lives in the URL fragment (<code className="text-accent">#key</code>), which browsers <strong>never send</strong> to the server.</p>
         <p>• The server only stores the encrypted ciphertext + IV — it cannot read your secret.</p>
