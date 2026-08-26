@@ -42,7 +42,7 @@ interface CreatedSecret {
  * La herramienta de crear secretos. La portada decide en el servidor si
  * enseñar esto o la landing, según haya sesión.
  */
-export function Tool({ email }: { email: string }) {
+export function Tool() {
   const [secret, setSecret] = useState("");
   const [ttl, setTtl] = useState(24);
   const [maxViews, setMaxViews] = useState(1);
@@ -137,27 +137,13 @@ export function Tool({ email }: { email: string }) {
   return (
     <div className="flex-1 flex flex-col items-center px-4 py-8 sm:py-12 max-w-2xl mx-auto w-full">
       {/* Logo / Brand */}
-      <div className="w-full flex items-start justify-between gap-3 mb-8">
-        <div className="min-w-0 flex-1 text-center sm:pl-[7.5rem]">
+      <div className="mb-8 w-full text-center">
         <h1 className="text-4xl sm:text-5xl font-bold mb-2">
           <span className="text-accent">Secret</span>Drop
         </h1>
         <p className="text-muted text-sm sm:text-base">
           Share secrets with end-to-end encryption. Burns after reading. 🔐🔥
         </p>
-        </div>
-        <div className="shrink-0 flex items-center gap-2 text-xs text-muted">
-          <span className="hidden sm:inline max-w-[14ch] truncate" title={email}>{email}</span>
-          <button
-            onClick={async () => {
-              await fetch("/api/auth/logout", { method: "POST" });
-              window.location.href = "/";
-            }}
-            className="rounded-lg px-3 py-1.5 hover:bg-surface transition-colors"
-          >
-            Sign out
-          </button>
-        </div>
       </div>
 
       {/* Create Form */}
