@@ -34,10 +34,16 @@ export function Landing() {
 
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
               <Link
-                href="/api/auth/login"
+                href="https://auth.kaicorplabs.com/if/flow/enroll-secretdrop/"
                 className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-7 text-base font-medium text-background transition-opacity hover:opacity-90"
               >
-                Sign in to create one
+                Request an account
+              </Link>
+              <Link
+                href="/api/auth/login"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-border px-7 text-base font-medium transition-colors hover:bg-surface"
+              >
+                Sign in
               </Link>
             </div>
             <p className="mt-3 text-xs text-muted">
@@ -100,10 +106,10 @@ export function Landing() {
             to leak.
           </p>
           <Link
-            href="/api/auth/login"
+            href="https://auth.kaicorplabs.com/if/flow/enroll-secretdrop/"
             className="mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-base font-medium text-background transition-opacity hover:opacity-90"
           >
-            Sign in
+            Request an account
             <span aria-hidden>→</span>
           </Link>
         </div>
