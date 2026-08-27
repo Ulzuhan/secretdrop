@@ -50,6 +50,7 @@ Until OIDC is configured nobody can sign in to create secrets — set the variab
 | `SECRETDROP_MAX_STORE_BYTES` | Total on-disk quota; default 100 MiB. |
 | `SECRETDROP_MAX_ACTIVE_SECRETS` | Active-secret quota; default 1000. |
 | `SECRETDROP_STORE_DIR` | Where secrets live. Defaults to `.secretdrop-store` next to the code. Configurable so the test suite does not write into the real store — before it existed, every run left its own secrets mixed in with people's, under the same automatic cleanup. |
+| `SECRETDROP_PUBLIC_HOST` | Public hostname the origin check compares against. Unset, the incoming `Host` is used, which is right behind a tunnel that preserves it — verified. Only needed behind a proxy that rewrites `Host` with an internal name. |
 
 ## Production deployment
 
@@ -90,7 +91,6 @@ gets read, and the expired one gets **deleted**.
 | `GET /api/secrets` | account | List live secrets on this instance (metadata only, never ciphertext). |
 | `GET /api/secrets/:id` | none | Fetch ciphertext + IV; counts toward the view budget. |
 | `POST /api/cleanup` | account | Purge expired and burned secrets. |
-| `SECRETDROP_PUBLIC_HOST` | Nombre público con el que se comprueba el origen de una petición. Sin poner se usa el `Host` que llega, que es lo correcto detrás de un túnel que lo conserva. Sólo hace falta si el proxy lo reescribe con un nombre interno. |
 
 ## Stack
 
