@@ -90,6 +90,7 @@ gets read, and the expired one gets **deleted**.
 | `GET /api/secrets` | account | List live secrets on this instance (metadata only, never ciphertext). |
 | `GET /api/secrets/:id` | none | Fetch ciphertext + IV; counts toward the view budget. |
 | `POST /api/cleanup` | account | Purge expired and burned secrets. |
+| `SECRETDROP_PUBLIC_HOST` | Nombre público con el que se comprueba el origen de una petición. Sin poner se usa el `Host` que llega, que es lo correcto detrás de un túnel que lo conserva. Sólo hace falta si el proxy lo reescribe con un nombre interno. |
 
 ## Stack
 
