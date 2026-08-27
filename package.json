@@ -10,7 +10,8 @@
     "test": "vitest run && ./scripts/run-suites.sh",
     "test:watch": "vitest",
     "test:unit": "vitest run",
-    "test:http": "./scripts/run-suites.sh"
+    "test:http": "./scripts/run-suites.sh",
+    "postbuild": "node scripts/prepare-standalone.mjs"
   },
   "dependencies": {
     "next": "^16.2.12",

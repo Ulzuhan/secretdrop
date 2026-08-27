@@ -19,7 +19,7 @@ cd "$(dirname "$0")/.."
 
 PUERTO="${PORT:-3992}"
 export BASE="http://127.0.0.1:$PUERTO"
-export SECRETDROP_SESSION_SECRET="${SECRETDROP_SESSION_SECRET:-secreto-de-pruebas}"
+export SECRETDROP_SESSION_SECRET="${SECRETDROP_SESSION_SECRET:-secreto-de-pruebas-secretdrop-32-bytes-minimo}"
 LOG="$(mktemp)"
 RAIZ_PRUEBAS="$(mktemp -d)"
 ALMACEN="$RAIZ_PRUEBAS/almacen"
@@ -83,6 +83,7 @@ arrancar() {
   # secretos mezclados con los de la gente, en el mismo directorio y con la misma
   # limpieza automática pasándoles por encima.
   SECRETDROP_STORE_DIR="$ALMACEN" \
+    SECRETDROP_MAX_STORE_BYTES=65536 \
     SECRETDROP_SESSION_SECRET="$SECRETDROP_SESSION_SECRET" \
     SECRETDROP_OIDC_CLIENT_ID=pruebas \
     SECRETDROP_OIDC_CLIENT_SECRET=pruebas \
@@ -123,6 +124,8 @@ arrancar() {
 
 fallo=0
 for suite in "${SUITES[@]}"; do
+  rm -rf "$ALMACEN"
+  mkdir -p "$ALMACEN"
   arrancar || { fallo=1; continue; }
   printf "%-10s " "$suite"
   salida=$(node "scripts/test-$suite.mjs" 2>&1)

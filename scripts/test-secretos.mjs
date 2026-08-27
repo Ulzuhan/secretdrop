@@ -132,6 +132,17 @@ check(
 check("y un iv enorme también", (await crear(cookie, { iv: "y".repeat(500) })).status, 413);
 check("sin criptograma no hay secreto", (await crear(cookie, { ciphertext: "" })).status, 400);
 
+
+console.log("\nLa cuota total se reserva de forma serializada");
+const carreraCuota = await Promise.all([
+  crear(cookie, { ciphertext: "a".repeat(40 * 1024) }),
+  crear(cookie, { ciphertext: "b".repeat(40 * 1024) }),
+]);
+check(
+  "dos secretos grandes concurrentes no sobrepasan 64 KiB",
+  carreraCuota.map((r) => r.status).sort((a, b) => a - b),
+  [200, 507]
+);
 console.log("\nLos plazos y las lecturas se acotan");
 // `Math.min(Math.max(ttl ?? 24, 1), 168)` parecía suficiente y no lo era: con
 // `ttlHours: "foo"` daba NaN, y como `NaN < Date.now()` es SIEMPRE false, el

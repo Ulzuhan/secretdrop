@@ -9,7 +9,7 @@
 import { createHmac } from "node:crypto";
 
 export const BASE = process.env.BASE || "http://127.0.0.1:3992";
-export const SECRETO = process.env.SECRETDROP_SESSION_SECRET || "secreto-de-pruebas";
+export const SECRETO = process.env.SECRETDROP_SESSION_SECRET || "secreto-de-pruebas-secretdrop-32-bytes-minimo";
 
 let pasan = 0;
 let fallan = 0;

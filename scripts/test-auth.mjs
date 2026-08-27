@@ -72,6 +72,49 @@ for (const [que, cola, galleta] of [
   check(`no abre sesión ${que}`, /secretdrop_session=[^;]{10,}/.test(r.headers.get("set-cookie") ?? ""), false);
 }
 
+
+console.log("\nPeticiones simples desde otro origen");
+const cruzadas = { Origin: "https://evil.example.com", "Sec-Fetch-Site": "same-site" };
+const limpiezaCruzada = await api("/api/cleanup", {
+  cookie: buena,
+  metodo: "POST",
+  cabeceras: cruzadas,
+});
+check("un dominio hermano no fuerza la limpieza", limpiezaCruzada.status, 403);
+const salidaCruzada = await api("/api/auth/logout", {
+  cookie: buena,
+  metodo: "POST",
+  cabeceras: cruzadas,
+});
+check("ni fuerza el cierre de sesión", salidaCruzada.status, 403);
+
+/**
+ * Y la cabecera que decide de dónde viene la petición no la puede escribir quien
+ * llama.
+ *
+ * `X-Forwarded-Host` **no la reemplaza este despliegue**: comprobado en vivo contra
+ * el túnel, llega intacta mientras `Host` sigue valiendo el nombre de verdad.
+ * Mientras se prefirió la primera, los dos guardianes se saltaban solos: cerrar la
+ * sesión y lanzar la purga daban 200 con un `Origin` a juego.
+ *
+ * El `Origin` va con el mismo esquema que ve el servidor de pruebas, a propósito:
+ * con otro, la comprobación rechazaría por el esquema y este test pasaría aunque el
+ * fallo siguiera ahí. Y sin `Sec-Fetch-Site`, que es como llega un navegador que no
+ * manda Fetch Metadata: deja sola a la comprobación de origen.
+ */
+const falseada = { Origin: "http://malo.example", "X-Forwarded-Host": "malo.example" };
+check(
+  "una cabecera X-Forwarded-Host inventada no fuerza la limpieza",
+  (await api("/api/cleanup", { cookie: buena, metodo: "POST", cabeceras: falseada })).status,
+  403
+);
+check(
+  "ni el cierre de sesión",
+  (await api("/api/auth/logout", { cookie: buena, metodo: "POST", cabeceras: falseada })).status,
+  403
+);
+check("y la sesión sigue en pie", (await crear(buena)).status, 200);
+check("ni manda borrar la cookie", salidaCruzada.set, null);
 console.log("\nSalir");
 const salida = await api("/api/auth/logout", { cookie: buena, metodo: "POST" });
 const borrada = /secretdrop_session=;|Max-Age=0|Expires=Thu, 01 Jan 1970/.test(salida.set ?? "");

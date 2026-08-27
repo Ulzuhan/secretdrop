@@ -17,7 +17,11 @@ import { cookies } from "next/headers";
 import { oidcConfigured, type OidcIdentity } from "@/lib/oidc";
 
 export const SESSION_COOKIE = "secretdrop_session";
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const configuredTtlHours = Number(process.env.SECRETDROP_SESSION_TTL_HOURS ?? 12);
+const SESSION_TTL_HOURS = Number.isFinite(configuredTtlHours)
+  ? Math.min(24, Math.max(1, configuredTtlHours))
+  : 12;
+const SESSION_TTL_MS = SESSION_TTL_HOURS * 60 * 60 * 1000;
 
 export interface Account {
   sub: string;
@@ -26,7 +30,8 @@ export interface Account {
 }
 
 function secret(): string | null {
-  return process.env.SECRETDROP_SESSION_SECRET?.trim() || null;
+  const value = process.env.SECRETDROP_SESSION_SECRET?.trim();
+  return value && Buffer.byteLength(value, "utf8") >= 32 ? value : null;
 }
 
 /** Without a signing secret and an OIDC client, nobody can get in at all. */

@@ -169,3 +169,46 @@ describe("loadMeta con la caché fría", () => {
     await deleteSecret(id);
   });
 });
+
+describe("consumeSecret", () => {
+  it("borra el material antes de entregar la última vista", async () => {
+    const { consumeSecret, loadMeta, saveMeta, nuevoId: nuevo } = await import("./store");
+    const id = nuevo();
+    await saveMeta({
+      id,
+      ciphertext: "cifrado",
+      iv: "iv-seguro",
+      expiresAt: Date.now() + 60_000,
+      maxViews: 1,
+      viewCount: 0,
+      createdAt: Date.now(),
+      burned: false,
+    });
+
+    const consumed = await consumeSecret(id);
+    expect(consumed.ok).toBe(true);
+    if (consumed.ok) expect(consumed.meta.burned).toBe(true);
+    const tombstone = await loadMeta(id);
+    expect(tombstone?.burned).toBe(true);
+    expect(tombstone?.ciphertext).toBe("");
+    expect(tombstone?.iv).toBe("");
+  });
+
+  it("serializa todas las vistas y nunca entrega más del presupuesto", async () => {
+    const { consumeSecret, saveMeta, nuevoId: nuevo } = await import("./store");
+    const id = nuevo();
+    await saveMeta({
+      id,
+      ciphertext: "cifrado",
+      iv: "iv-seguro",
+      expiresAt: Date.now() + 60_000,
+      maxViews: 3,
+      viewCount: 0,
+      createdAt: Date.now(),
+      burned: false,
+    });
+
+    const results = await Promise.all(Array.from({ length: 30 }, () => consumeSecret(id)));
+    expect(results.filter((result) => result.ok)).toHaveLength(3);
+  });
+});

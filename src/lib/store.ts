@@ -19,9 +19,18 @@ import { randomBytes } from "crypto";
  * de la gente, en el mismo directorio y con la misma limpieza automática
  * pasándoles por encima. Sin variable puesta, se comporta como siempre.
  */
-export const STORE_DIR =
-  process.env.SECRETDROP_STORE_DIR?.trim() || join(process.cwd(), ".secretdrop-store");
+function positiveEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
 
+export const MAX_STORE_BYTES = positiveEnv("SECRETDROP_MAX_STORE_BYTES", 100 * 1024 * 1024);
+export const MAX_ACTIVE_SECRETS = positiveEnv("SECRETDROP_MAX_ACTIVE_SECRETS", 1000);
+
+export const STORE_DIR =
+  process.env.SECRETDROP_STORE_DIR?.trim() || join(/*turbopackIgnore: true*/ process.cwd(), ".secretdrop-store");
+
+const BURNED_TOMBSTONE_TTL = 7 * 24 * 60 * 60 * 1000;
 export interface SecretMeta {
   id: string;
   ciphertext: string;
@@ -31,6 +40,7 @@ export interface SecretMeta {
   viewCount: number;
   createdAt: number;
   burned: boolean;
+  burnedAt?: number;
 }
 
 const globalStore = globalThis as typeof globalThis & {
@@ -145,7 +155,9 @@ export async function cleanupExpired(): Promise<number> {
     if (!idValido(id)) continue;
     const meta = await loadMeta(id);
     if (!meta) continue;
-    if (meta.burned || meta.expiresAt < ahora) {
+    const tombstoneExpired = meta.burned &&
+      (!meta.burnedAt || ahora - meta.burnedAt > BURNED_TOMBSTONE_TTL);
+    if (tombstoneExpired || (!meta.burned && meta.expiresAt < ahora)) {
       await deleteSecret(id);
       borrados++;
     }
@@ -165,4 +177,89 @@ export function enRango(valor: unknown, min: number, max: number, porDefecto: nu
   const n = typeof valor === "number" ? valor : Number.NaN;
   if (!Number.isFinite(n)) return porDefecto;
   return Math.min(Math.max(Math.floor(n), min), max);
+}
+
+export type ConsumeResult =
+  | { ok: true; meta: SecretMeta }
+  | { ok: false; reason: "not_found" | "expired" | "burned" | "storage_error" };
+
+const consumeChains = new Map<string, Promise<unknown>>();
+
+function serializeConsume<T>(id: string, task: () => Promise<T>): Promise<T> {
+  const previous = consumeChains.get(id) ?? Promise.resolve();
+  const next = previous.then(task, task);
+  consumeChains.set(
+    id,
+    next.catch(() => {}).finally(() => {
+      if (consumeChains.get(id) === next) consumeChains.delete(id);
+    })
+  );
+  return next;
+}
+
+async function deleteBeforeDelivery(id: string): Promise<boolean> {
+  try {
+    await unlink(join(STORE_DIR, id, "meta.json"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
+  }
+  try {
+    await rmdir(join(STORE_DIR, id));
+  } catch {}
+  getStore().delete(id);
+  return true;
+}
+
+/**
+ * Claims exactly one view. The counter update or final deletion completes before the
+ * ciphertext is returned, and every caller for an id runs in one chain.
+ */
+export function consumeSecret(id: string): Promise<ConsumeResult> {
+  return serializeConsume(id, async () => {
+    const meta = await loadMeta(id);
+    if (!meta) return { ok: false, reason: "not_found" } as const;
+    if (meta.expiresAt < Date.now()) {
+      await deleteBeforeDelivery(id);
+      return { ok: false, reason: "expired" } as const;
+    }
+    if (meta.burned || meta.viewCount >= meta.maxViews) {
+      return { ok: false, reason: "burned" } as const;
+    }
+
+    meta.viewCount++;
+    meta.burned = meta.viewCount >= meta.maxViews;
+    const responseMeta = { ...meta };
+
+    try {
+      if (meta.burned) {
+        await saveMeta({ ...meta, ciphertext: "", iv: "", burnedAt: Date.now() });
+      } else {
+        await saveMeta(meta);
+      }
+    } catch {
+      return { ok: false, reason: "storage_error" } as const;
+    }
+
+    return { ok: true, meta: responseMeta } as const;
+  });
+}
+export async function saveNewMeta(meta: SecretMeta): Promise<"ok" | "quota"> {
+  return serializeConsume("__create__", async () => {
+    let entries: string[] = [];
+    try { entries = await readdir(STORE_DIR); } catch {}
+    let bytes = 0;
+    let count = 0;
+    for (const id of entries) {
+      if (!idValido(id)) continue;
+      try {
+        const raw = await readFile(join(STORE_DIR, id, "meta.json"));
+        bytes += raw.byteLength;
+        count++;
+      } catch {}
+    }
+    const encoded = Buffer.byteLength(JSON.stringify(meta), "utf8");
+    if (count >= MAX_ACTIVE_SECRETS || bytes + encoded > MAX_STORE_BYTES) return "quota";
+    await saveMeta(meta);
+    return "ok";
+  });
 }

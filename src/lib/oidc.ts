@@ -30,19 +30,27 @@ export interface OidcConfig {
   appSlug: string;
 }
 
+function validUrl(raw: string | undefined, publicFacing: boolean): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    const loopback = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && (!publicFacing || loopback))) return null;
+    if (url.username || url.password || url.search || url.hash) return null;
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+}
+
 export function oidcConfig(): OidcConfig | null {
   const clientId = process.env.SECRETDROP_OIDC_CLIENT_ID?.trim();
   const clientSecret = process.env.SECRETDROP_OIDC_CLIENT_SECRET?.trim();
-  const publicBase = (process.env.SECRETDROP_OIDC_PUBLIC_BASE ?? "https://auth.kaicorplabs.com").replace(/\/+$/, "");
-  const internalBase = (process.env.SECRETDROP_OIDC_INTERNAL_BASE ?? "http://127.0.0.1:9100").replace(/\/+$/, "");
-  const redirectUri = process.env.SECRETDROP_OIDC_REDIRECT_URI?.trim();
-  // El cierre de sesión de Authentik cuelga del slug con el que se dio de alta
-  // la aplicación, y ese slug lo elige quien la despliega. Estaba escrito a mano
-  // como "secretdrop": correcto aquí, roto para cualquiera que la registre con
-  // otro nombre. El valor por defecto mantiene el comportamiento actual.
+  const publicBase = validUrl(process.env.SECRETDROP_OIDC_PUBLIC_BASE?.trim(), true);
+  const internalBase = validUrl(process.env.SECRETDROP_OIDC_INTERNAL_BASE?.trim() || publicBase || undefined, false);
+  const redirectUri = validUrl(process.env.SECRETDROP_OIDC_REDIRECT_URI?.trim(), true);
   const appSlug = (process.env.SECRETDROP_OIDC_APP_SLUG ?? "secretdrop").trim().replace(/^\/+|\/+$/g, "");
-
-  if (!clientId || !clientSecret || !redirectUri) return null;
+  if (!clientId || !clientSecret || !publicBase || !internalBase || !redirectUri || !appSlug) return null;
   return { publicBase, internalBase, clientId, clientSecret, redirectUri, appSlug };
 }
 
@@ -52,6 +60,10 @@ export function oidcConfigured(): boolean {
 }
 
 const APP_PATH = "/application/o";
+const configuredTimeout = Number(process.env.SECRETDROP_OIDC_TIMEOUT_MS ?? 10_000);
+const OIDC_TIMEOUT_MS = Number.isFinite(configuredTimeout)
+  ? Math.min(60_000, Math.max(1_000, configuredTimeout))
+  : 10_000;
 
 export function authorizeUrl(
   cfg: OidcConfig,
@@ -113,6 +125,7 @@ export async function exchangeCode(
       client_secret: cfg.clientSecret,
       code_verifier: verifier,
     }),
+    signal: AbortSignal.timeout(OIDC_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -124,6 +137,7 @@ export async function exchangeCode(
 
   const info = await fetch(`${cfg.internalBase}${APP_PATH}/userinfo/`, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
+    signal: AbortSignal.timeout(OIDC_TIMEOUT_MS),
   });
   if (!info.ok) {
     throw new Error(`userinfo: ${info.status}`);

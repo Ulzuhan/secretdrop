@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccount } from "@/lib/auth";
 import { jsonBody } from "@/lib/body";
-import { cleanupExpired, enRango, getStore, nuevoId, saveMeta, type SecretMeta } from "@/lib/store";
+import { cleanupExpired, enRango, getStore, nuevoId, saveNewMeta, type SecretMeta } from "@/lib/store";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
 
 // ─── Startup cleanup ────────────────────────────────────────────────
 cleanupExpired();
@@ -20,6 +21,8 @@ const MAX_IV = 256;
 
 // ─── POST /api/secrets — Create a secret ────────────────────────────
 export async function POST(request: NextRequest) {
+  const limited = rateLimit("create:" + clientIp(request), 60, 60 * 60 * 1000);
+  if (limited) return limited;
   // Crear exige cuenta; leer no —eso vive en
   // /api/secrets/[id] — porque quien recibe el enlace no tiene por qué tenerla.
   const unauthorized = await requireAccount();
@@ -59,7 +62,9 @@ export async function POST(request: NextRequest) {
       burned: false,
     };
 
-    await saveMeta(meta);
+    if ((await saveNewMeta(meta)) === "quota") {
+      return NextResponse.json({ error: "Secret store is full" }, { status: 507 });
+    }
 
     return NextResponse.json({
       id,

@@ -20,6 +20,7 @@
  * El tipo de vuelta es `any` a propósito: es lo mismo que devolvía
  * `request.json()`, así que la ruta sigue validando campo por campo como hacía.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function jsonBody(request: Request): Promise<any | null> {
   const tipo = request.headers.get("content-type") ?? "";
   if (!/^application\/json\s*(;|$)/i.test(tipo.trim())) return null;

@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAccount } from "@/lib/auth";
 import { cleanupExpired } from "@/lib/store";
+import { isSameOriginMutation } from "@/lib/request-origin";
 
 /**
  * POST /api/cleanup — purga caducados y quemados.
@@ -15,7 +16,10 @@ import { cleanupExpired } from "@/lib/store";
  * sirviéndose desde RAM hasta que el proceso se reiniciara, que es justo lo
  * contrario de lo que promete esta herramienta.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  if (!isSameOriginMutation(request)) {
+    return NextResponse.json({ error: "Cross-origin request refused" }, { status: 403 });
+  }
   const unauthorized = await requireAccount();
   if (unauthorized) return unauthorized;
 

@@ -19,8 +19,8 @@ Same security model as OneTimeSecret, Yopass or PrivateBin.
 
 ## Burn semantics
 
-- **View budget** — 1 to 10 views, default 1. The view that exhausts the budget marks the secret burned and deletes it from disk; a burned or expired link answers `410`, never the ciphertext again.
-- **Expiry** — 1 hour to 7 days, default 24 h. Expired secrets are removed on access, at startup, and by `POST /api/cleanup`.
+- **View budget** — 1 to 10 views, default 1. The view that exhausts the budget writes a durable tombstone with no ciphertext before returning it; a burned or expired link answers `410`, never the ciphertext again.
+- **Expiry** — 1 hour to 7 days, default 24 h. Expired secrets are removed on access, at process startup, and by `POST /api/cleanup`.
 - **Storage** — flat files under `.secretdrop-store/` with an in-memory cache in front. No database required.
 
 ## Who can do what
@@ -45,7 +45,15 @@ Until OIDC is configured nobody can sign in to create secrets — set the variab
 | `SECRETDROP_OIDC_REDIRECT_URI` | Must match one of the URIs registered in the provider. |
 | `SECRETDROP_OIDC_PUBLIC_BASE` | The provider as the browser sees it. |
 | `SECRETDROP_OIDC_INTERNAL_BASE` | The provider as this server sees it — redeeming the authorization code never leaves the internal network. |
+| `SECRETDROP_SESSION_TTL_HOURS` | Signed-session lifetime; default 12 h, clamped to 1–24 h. |
+| `SECRETDROP_OIDC_TIMEOUT_MS` | OIDC network timeout; default 10 s. |
+| `SECRETDROP_MAX_STORE_BYTES` | Total on-disk quota; default 100 MiB. |
+| `SECRETDROP_MAX_ACTIVE_SECRETS` | Active-secret quota; default 1000. |
 | `SECRETDROP_STORE_DIR` | Where secrets live. Defaults to `.secretdrop-store` next to the code. Configurable so the test suite does not write into the real store — before it existed, every run left its own secrets mixed in with people's, under the same automatic cleanup. |
+
+## Production deployment
+
+See [`DEPLOYMENT.md`](DEPLOYMENT.md). Run one application process behind a TLS reverse proxy; in-process locks, quotas and rate limits are not distributed. Do not back up the payload store, because restoring it can resurrect data that should have expired.
 
 ## Tests
 

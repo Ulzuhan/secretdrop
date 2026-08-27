@@ -1,0 +1,23 @@
+services:
+  secretdrop:
+    build: .
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:3461:3461"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - secretdrop-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 512m
+
+volumes:
+  secretdrop-data:
