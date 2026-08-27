@@ -1,45 +1,24 @@
 import { NextResponse } from "next/server";
-import { readdir, readFile, unlink, rmdir } from "fs/promises";
-import { join } from "path";
+import { requireAccount } from "@/lib/auth";
+import { cleanupExpired } from "@/lib/store";
 
-const STORE_DIR = join(process.cwd(), ".secretdrop-store");
-
-interface SecretMeta {
-  id: string;
-  ciphertext: string;
-  iv: string;
-  expiresAt: number;
-  maxViews: number;
-  viewCount: number;
-  createdAt: number;
-  burned: boolean;
-}
-
-// POST /api/cleanup — Remove expired and burned secrets
+/**
+ * POST /api/cleanup — purga caducados y quemados.
+ *
+ * Ahora exige cuenta. Antes era público: recorría el almacén entero leyendo
+ * ficheros en cada llamada, así que bastaba con repetirla para generar picos de
+ * disco sin tener nada. No exponía secretos, pero era trabajo gratis para quien
+ * lo encontrara.
+ *
+ * La purga real vive en `lib/store`. Antes estaba aquí duplicada y **borraba
+ * del disco sin tocar la caché en memoria**: un secreto purgado podía seguir
+ * sirviéndose desde RAM hasta que el proceso se reiniciara, que es justo lo
+ * contrario de lo que promete esta herramienta.
+ */
 export async function POST() {
-  const now = Date.now();
-  const deleted: string[] = [];
+  const unauthorized = await requireAccount();
+  if (unauthorized) return unauthorized;
 
-  try {
-    const dirs = await readdir(STORE_DIR);
-    for (const id of dirs) {
-      try {
-        const raw = await readFile(join(STORE_DIR, id, "meta.json"), "utf-8");
-        const meta: SecretMeta = JSON.parse(raw);
-
-        if (meta.expiresAt < now || meta.burned) {
-          try { await unlink(join(STORE_DIR, id, "meta.json")); } catch {}
-          try { await rmdir(join(STORE_DIR, id)); } catch {}
-          deleted.push(id);
-        }
-      } catch {
-        // Orphaned dir
-        try { await rmdir(join(STORE_DIR, id)); } catch {}
-      }
-    }
-  } catch {
-    // Store dir doesn't exist
-  }
-
-  return NextResponse.json({ deleted, timestamp: now });
+  const borrados = await cleanupExpired();
+  return NextResponse.json({ deleted: borrados, timestamp: Date.now() });
 }

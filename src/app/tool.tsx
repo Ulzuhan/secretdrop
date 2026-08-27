@@ -156,10 +156,13 @@ export function Tool() {
         <div className="sd-compose w-full mb-8 space-y-4">
           {/* Secret Input */}
           <div className="sd-secret-input">
-            <label className="block text-sm font-medium text-muted mb-2">
+            {/* `htmlFor` + `id`: sin ellos el rótulo es solo texto suelto y un
+                lector de pantalla anuncia el campo sin decir qué es. */}
+            <label htmlFor="secreto" className="block text-sm font-medium text-muted mb-2">
               Your secret (password, token, API key,...)
             </label>
             <textarea
+              id="secreto"
               ref={textareaRef}
               value={secret}
               onChange={(e) => setSecret(e.target.value)}
@@ -174,10 +177,15 @@ export function Tool() {
 
           {/* TTL Selector */}
           <div className="sd-setting">
-            <label className="block text-sm font-medium text-muted mb-2">
+            {/* Estos rótulos no llevan `htmlFor`: no etiquetan un campo, sino un
+                grupo de botones excluyentes. Lo correcto es un radiogroup con
+                el rótulo referenciado por id, y `aria-checked` en cada opción —
+                así el lector anuncia "Self-destruct after, 24h, seleccionado"
+                en vez de leer cinco botones sueltos sin contexto. */}
+            <span id="rotulo-ttl" className="block text-sm font-medium text-muted mb-2">
               Self-destruct after
-            </label>
-            <div className="flex gap-1.5 flex-wrap">
+            </span>
+            <div role="radiogroup" aria-labelledby="rotulo-ttl" className="flex gap-1.5 flex-wrap">
               {[
                 { h: 1, label: "1h" },
                 { h: 6, label: "6h" },
@@ -187,6 +195,8 @@ export function Tool() {
               ].map(({ h, label }) => (
                 <button
                   key={h}
+                  role="radio"
+                  aria-checked={ttl === h}
                   onClick={() => setTtl(h)}
                   className={`px-3 py-1.5 rounded-lg font-medium text-sm transition-all ${
                     ttl === h
@@ -202,13 +212,15 @@ export function Tool() {
 
           {/* Max Views */}
           <div className="sd-setting">
-            <label className="block text-sm font-medium text-muted mb-2">
+            <span id="rotulo-vistas" className="block text-sm font-medium text-muted mb-2">
               Max views before burn
-            </label>
-            <div className="flex gap-1.5">
+            </span>
+            <div role="radiogroup" aria-labelledby="rotulo-vistas" className="flex gap-1.5">
               {[1, 2, 3, 5, 10].map((v) => (
                 <button
                   key={v}
+                  role="radio"
+                  aria-checked={maxViews === v}
                   onClick={() => setMaxViews(v)}
                   className={`px-3 py-1.5 rounded-lg font-medium text-sm transition-all ${
                     maxViews === v

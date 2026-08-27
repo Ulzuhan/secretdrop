@@ -28,3 +28,6 @@ yarn-error.log*
 .DS_Store
 # typescript
 next-env.d.ts
+
+# Caché incremental de TypeScript: cambia en cada compilación
+*.tsbuildinfo

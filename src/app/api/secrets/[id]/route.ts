@@ -1,57 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, writeFile, unlink, rmdir } from "fs/promises";
-import { join } from "path";
-
-const STORE_DIR = join(process.cwd(), ".secretdrop-store");
-
-interface SecretMeta {
-  id: string;
-  ciphertext: string;
-  iv: string;
-  expiresAt: number;
-  maxViews: number;
-  viewCount: number;
-  createdAt: number;
-  burned: boolean;
-}
-
-const globalStore = globalThis as typeof globalThis & {
-  __secretdrop_store__?: Map<string, SecretMeta>;
-};
-
-function getStore(): Map<string, SecretMeta> {
-  globalStore.__secretdrop_store__ ??= new Map();
-  return globalStore.__secretdrop_store__;
-}
-
-async function loadMeta(id: string): Promise<SecretMeta | null> {
-  const store = getStore();
-  if (store.has(id)) return store.get(id)!;
-
-  try {
-    const raw = await readFile(join(STORE_DIR, id, "meta.json"), "utf-8");
-    const meta: SecretMeta = JSON.parse(raw);
-    store.set(id, meta);
-    return meta;
-  } catch {
-    return null;
-  }
-}
-
-async function deleteSecret(id: string) {
-  try { await unlink(join(STORE_DIR, id, "meta.json")); } catch {}
-  try { await rmdir(join(STORE_DIR, id)); } catch {}
-  getStore().delete(id);
-}
+import { deleteSecret, idValido, loadMeta, saveMeta } from "@/lib/store";
 
 // ─── GET /api/secrets/[id] — Retrieve & burn a secret ───────────────
 // Returns the ciphertext + IV ONLY. The decryption key comes from the URL fragment
 // and is never sent to the server. After maxViews is reached, the secret is burned.
+//
+// Deliberadamente SIN sesión: quien recibe el enlace no tiene por qué tener
+// cuenta. Por eso mismo la validación del `id` de abajo no es opcional — todo lo
+// que hay detrás es alcanzable desde internet por cualquiera.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  // El `id` se concatenaba con `join(STORE_DIR, id, …)` sin comprobar nada.
+  // Con `%2e%2e%2f` repetido se salía del almacén: lectura de cualquier
+  // `meta.json` del sistema y, si su fecha estaba vencida, borrado del fichero
+  // y `rmdir` de su carpeta. Sin sesión. Ver la explicación larga en lib/store.
+  if (!idValido(id)) {
+    // Misma respuesta que un id inexistente: no hay motivo para distinguir
+    // "mal formado" de "no existe" ante quien está probando.
+    return NextResponse.json({ error: "Secret not found" }, { status: 404 });
+  }
+
   const meta = await loadMeta(id);
 
   if (!meta) {
@@ -79,7 +51,7 @@ export async function GET(
 
   // Persist updated metadata
   try {
-    await writeFile(join(STORE_DIR, id, "meta.json"), JSON.stringify(meta, null, 2));
+    await saveMeta(meta);
   } catch {
     // Disk write failed, but in-memory is updated — still serve the secret
     console.error("Failed to persist meta for", id);

@@ -1,72 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir, readdir, readFile, unlink, rmdir } from "fs/promises";
-import { existsSync } from "fs";
-import { join } from "path";
-import { randomBytes } from "crypto";
 import { requireAccount } from "@/lib/auth";
-
-const STORE_DIR = join(process.cwd(), ".secretdrop-store");
-
-// ─── Types ──────────────────────────────────────────────────────────
-interface SecretMeta {
-  id: string;
-  ciphertext: string;      // AES-256-GCM encrypted (base64)
-  iv: string;              // Initialization vector (base64)
-  expiresAt: number;       // Timestamp when secret expires
-  maxViews: number;        // Max times the secret can be viewed (default 1)
-  viewCount: number;       // How many times it's been viewed
-  createdAt: number;
-  burned: boolean;         // True after maxViews reached
-}
-
-// ─── In-memory cache (for speed) backed by disk (for persistence) ─
-const globalStore = globalThis as typeof globalThis & {
-  __secretdrop_store__?: Map<string, SecretMeta>;
-};
-
-function getStore(): Map<string, SecretMeta> {
-  globalStore.__secretdrop_store__ ??= new Map();
-  return globalStore.__secretdrop_store__;
-}
+import { cleanupExpired, getStore, nuevoId, saveMeta, type SecretMeta } from "@/lib/store";
 
 // ─── Startup cleanup ────────────────────────────────────────────────
-async function cleanupExpired() {
-  if (!existsSync(STORE_DIR)) return;
-  const now = Date.now();
-  const store = getStore();
-
-  try {
-    const dirs = await readdir(STORE_DIR);
-    for (const id of dirs) {
-      try {
-        const raw = await readFile(join(STORE_DIR, id, "meta.json"), "utf-8");
-        const meta: SecretMeta = JSON.parse(raw);
-        if (meta.expiresAt < now || meta.burned) {
-          await deleteSecret(id);
-        } else {
-          store.set(id, meta);
-        }
-      } catch {
-        // Orphaned dir
-        try { await rmdir(join(STORE_DIR, id)); } catch {}
-      }
-    }
-  } catch {}
-}
-
-async function deleteSecret(id: string) {
-  try { await unlink(join(STORE_DIR, id, "meta.json")); } catch {}
-  try { await rmdir(join(STORE_DIR, id)); } catch {}
-  getStore().delete(id);
-}
-
-// Run cleanup on module load
 cleanupExpired();
 
-// ─── POST /api/secrets — Create a new secret ────────────────────────
+/**
+ * Tope del criptograma.
+ *
+ * No había ninguno: quien tuviera cuenta podía mandar decenas de megas por
+ * petición, que se cargan enteros en memoria y se escriben en disco. 256 KB de
+ * base64 son ~192 KB en claro, de sobra para lo que esto es —una contraseña,
+ * una clave, un código de recuperación— y muy lejos de poder tumbar el proceso.
+ */
+const MAX_CIPHERTEXT = 256 * 1024;
+const MAX_IV = 256;
+
+/**
+ * Un número dentro de un rango, o el valor por defecto.
+ *
+ * `Math.min(Math.max(ttlHours ?? 24, 1), 168)` parecía suficiente y no lo era:
+ * con `ttlHours: "foo"` o `null`, `Math.max` devuelve NaN, y `expiresAt` se
+ * guardaba como NaN. Como `NaN < Date.now()` es **siempre false**, el secreto
+ * no caducaba nunca: un "se borra en 1 hora" que en realidad era para siempre.
+ */
+function enRango(valor: unknown, min: number, max: number, porDefecto: number): number {
+  const n = typeof valor === "number" ? valor : Number.NaN;
+  if (!Number.isFinite(n)) return porDefecto;
+  return Math.min(Math.max(Math.floor(n), min), max);
+}
+
+// ─── POST /api/secrets — Create a secret ────────────────────────────
 export async function POST(request: NextRequest) {
-  // Crear exige cuenta: abierto de par en par, esto es alojamiento anónimo de
-  // texto cifrado para cualquiera. Abrir un secreto NO la exige — ver
+  // Crear exige cuenta; leer no —eso vive en
   // /api/secrets/[id] — porque quien recibe el enlace no tiene por qué tenerla.
   const unauthorized = await requireAccount();
   if (unauthorized) return unauthorized;
@@ -74,21 +40,23 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { ciphertext, iv, ttlHours, maxViews } = body as {
-      ciphertext: string;
-      iv: string;
-      ttlHours?: number;
-      maxViews?: number;
+      ciphertext?: unknown;
+      iv?: unknown;
+      ttlHours?: unknown;
+      maxViews?: unknown;
     };
 
-    // Validate
-    if (!ciphertext || !iv) {
+    if (typeof ciphertext !== "string" || typeof iv !== "string" || !ciphertext || !iv) {
       return NextResponse.json({ error: "Missing ciphertext or iv" }, { status: 400 });
     }
+    if (ciphertext.length > MAX_CIPHERTEXT || iv.length > MAX_IV) {
+      return NextResponse.json({ error: "Secret too large" }, { status: 413 });
+    }
 
-    const ttl = Math.min(Math.max(ttlHours ?? 24, 1), 168); // 1h to 7d max
-    const views = Math.min(Math.max(maxViews ?? 1, 1), 10);  // 1 to 10 views max
+    const ttl = enRango(ttlHours, 1, 168, 24); // 1h a 7d
+    const views = enRango(maxViews, 1, 10, 1); // 1 a 10 lecturas
 
-    const id = randomBytes(9).toString("base64url"); // ~12 chars URL-safe
+    const id = nuevoId();
     const meta: SecretMeta = {
       id,
       ciphertext,
@@ -100,10 +68,7 @@ export async function POST(request: NextRequest) {
       burned: false,
     };
 
-    // Persist to disk
-    await mkdir(join(STORE_DIR, id), { recursive: true });
-    await writeFile(join(STORE_DIR, id, "meta.json"), JSON.stringify(meta, null, 2));
-    getStore().set(id, meta);
+    await saveMeta(meta);
 
     return NextResponse.json({
       id,
