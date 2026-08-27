@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccount } from "@/lib/auth";
+import { jsonBody } from "@/lib/body";
 import { cleanupExpired, enRango, getStore, nuevoId, saveMeta, type SecretMeta } from "@/lib/store";
 
 // ─── Startup cleanup ────────────────────────────────────────────────
@@ -25,7 +26,10 @@ export async function POST(request: NextRequest) {
   if (unauthorized) return unauthorized;
 
   try {
-    const body = await request.json();
+    const body = await jsonBody(request);
+    if (!body) {
+      return NextResponse.json({ error: "Malformed request body" }, { status: 400 });
+    }
     const { ciphertext, iv, ttlHours, maxViews } = body as {
       ciphertext?: unknown;
       iv?: unknown;

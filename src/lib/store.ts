@@ -11,7 +11,16 @@ import { randomBytes } from "crypto";
  * así que un secreto podía seguir sirviéndose después de haber sido purgado.
  */
 
-export const STORE_DIR = join(process.cwd(), ".secretdrop-store");
+/**
+ * Dónde viven los secretos.
+ *
+ * Configurable por entorno para que las pruebas no escriban en el almacén de
+ * verdad: sin esto, cada tirada de tests dejaba secretos suyos mezclados con los
+ * de la gente, en el mismo directorio y con la misma limpieza automática
+ * pasándoles por encima. Sin variable puesta, se comporta como siempre.
+ */
+export const STORE_DIR =
+  process.env.SECRETDROP_STORE_DIR?.trim() || join(process.cwd(), ".secretdrop-store");
 
 export interface SecretMeta {
   id: string;
@@ -73,6 +82,26 @@ export async function loadMeta(id: string): Promise<SecretMeta | null> {
   try {
     const raw = await readFile(join(STORE_DIR, id, "meta.json"), "utf-8");
     const meta: SecretMeta = JSON.parse(raw);
+
+    // Segunda mirada a la caché, y no sobra.
+    //
+    // Entre el `store.has` de arriba y esta línea hay un `await`, y en ese hueco
+    // caben otras peticiones del mismo secreto: todas ven la caché vacía, todas
+    // leen el fichero y **cada una se queda con su propio objeto**. A partir de
+    // ahí cada una lleva su cuenta de lecturas por separado, todas creen ser la
+    // primera, y un secreto de un solo uso se entrega a todas.
+    //
+    // Con la lectura de disco a velocidad normal no se reprodujo —150 lecturas
+    // simultáneas en frío, servidas una sola vez—. Pero eso no es una garantía,
+    // es una carrera que hoy se pierde: ensanchando el hueco 50 ms a propósito,
+    // un secreto de UN SOLO USO se entregó a los 30 lectores a la vez. Un disco
+    // cargado o un sistema de ficheros más lento hacen lo mismo sin avisar.
+    //
+    // Quien llegue segundo se queda con el objeto del primero. Uno solo, y las
+    // cuentas de lecturas vuelven a ser una.
+    const yaCargado = store.get(id);
+    if (yaCargado) return yaCargado;
+
     store.set(id, meta);
     return meta;
   } catch {

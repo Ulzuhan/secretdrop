@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start -p 3461",
     "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run && ./scripts/run-suites.sh",
+    "test:watch": "vitest",
+    "test:unit": "vitest run",
+    "test:http": "./scripts/run-suites.sh"
   },
   "dependencies": {
     "next": "^16.2.12",

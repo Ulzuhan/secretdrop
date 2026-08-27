@@ -116,3 +116,56 @@ describe("enRango", () => {
     expect(enRango(1.9, 1, 10, 1)).toBe(1);
   });
 });
+
+/**
+ * Dos lecturas a la vez del mismo secreto tienen que hablar del MISMO objeto.
+ *
+ * Es lo único que sostiene la promesa de esta herramienta. `loadMeta` mira la
+ * caché, no lo encuentra, y lee el fichero; entre esas dos cosas hay un `await`,
+ * y en ese hueco caben otras peticiones del mismo secreto. Si cada una se queda
+ * con su propia copia, cada una lleva su cuenta de lecturas por separado, todas
+ * creen ser la primera, y un secreto de un solo uso se entrega a todas.
+ *
+ * No se prueba con relojes ni con peticiones simultáneas, que dependen de lo
+ * cargada que esté la máquina: se prueba por la identidad de los objetos, que es
+ * lo que de verdad decide. Si son el mismo, el contador es uno.
+ *
+ * Se comprobó que esto pasa de verdad ensanchando ese hueco 50 ms a propósito:
+ * un secreto de UN SOLO USO se entregó a los 30 lectores a la vez.
+ */
+describe("loadMeta con la caché fría", () => {
+  it("entrega el mismo objeto a quienes llegan a la vez", async () => {
+    const { loadMeta, saveMeta, deleteSecret, getStore, nuevoId: nuevo } = await import("./store");
+
+    const id = nuevo();
+    await saveMeta({
+      id,
+      ciphertext: "x".repeat(32),
+      iv: "aaaabbbbccccdddd",
+      expiresAt: Date.now() + 3_600_000,
+      maxViews: 1,
+      viewCount: 0,
+      createdAt: Date.now(),
+      burned: false,
+    });
+
+    // Enfriar la caché a mano es lo que reproduce el arranque del servidor: el
+    // fichero sigue en disco y la memoria está vacía.
+    getStore().delete(id);
+    expect(getStore().has(id), "la caché tiene que estar fría para que esto pruebe algo").toBe(false);
+
+    const [a, b, c] = await Promise.all([loadMeta(id), loadMeta(id), loadMeta(id)]);
+    expect(a).not.toBeNull();
+    expect(b).toBe(a);
+    expect(c).toBe(a);
+
+    // Y la consecuencia, que es lo que importa: una lectura en uno se ve en los
+    // otros, así que el segundo en llegar encuentra el secreto ya quemado.
+    a!.viewCount++;
+    a!.burned = true;
+    expect(b!.burned, "quien llegó después tiene que ver que ya está quemado").toBe(true);
+    expect(c!.viewCount).toBe(1);
+
+    await deleteSecret(id);
+  });
+});
