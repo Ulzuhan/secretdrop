@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAccount } from "@/lib/auth";
-import { cleanupExpired, getStore, nuevoId, saveMeta, type SecretMeta } from "@/lib/store";
+import { cleanupExpired, enRango, getStore, nuevoId, saveMeta, type SecretMeta } from "@/lib/store";
 
 // ─── Startup cleanup ────────────────────────────────────────────────
 cleanupExpired();
@@ -16,19 +16,6 @@ cleanupExpired();
 const MAX_CIPHERTEXT = 256 * 1024;
 const MAX_IV = 256;
 
-/**
- * Un número dentro de un rango, o el valor por defecto.
- *
- * `Math.min(Math.max(ttlHours ?? 24, 1), 168)` parecía suficiente y no lo era:
- * con `ttlHours: "foo"` o `null`, `Math.max` devuelve NaN, y `expiresAt` se
- * guardaba como NaN. Como `NaN < Date.now()` es **siempre false**, el secreto
- * no caducaba nunca: un "se borra en 1 hora" que en realidad era para siempre.
- */
-function enRango(valor: unknown, min: number, max: number, porDefecto: number): number {
-  const n = typeof valor === "number" ? valor : Number.NaN;
-  if (!Number.isFinite(n)) return porDefecto;
-  return Math.min(Math.max(Math.floor(n), min), max);
-}
 
 // ─── POST /api/secrets — Create a secret ────────────────────────────
 export async function POST(request: NextRequest) {

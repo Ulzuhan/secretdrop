@@ -6,7 +6,9 @@
     "dev": "next dev -p 3461",
     "build": "next build",
     "start": "next start -p 3461",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "next": "^16.2.12",
@@ -21,7 +23,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "sharp": "^0.35.0",

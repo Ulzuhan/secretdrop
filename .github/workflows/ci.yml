@@ -21,6 +21,11 @@ jobs:
 
       - run: npm run lint
 
+      # Antes del build: son funciones puras y fallan en un cuarto de segundo.
+      # Cubren idValido() y enRango(), que son justo las dos que permitían una
+      # travesía de rutas y un secreto que no caducaba nunca.
+      - run: npm test
+
       - run: npm run build
 
       # After the build on purpose: Next generates the route types the checker
