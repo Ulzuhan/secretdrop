@@ -45,6 +45,34 @@ Until OIDC is configured nobody can sign in to create secrets — set the variab
 | `SECRETDROP_OIDC_REDIRECT_URI` | Must match one of the URIs registered in the provider. |
 | `SECRETDROP_OIDC_PUBLIC_BASE` | The provider as the browser sees it. |
 | `SECRETDROP_OIDC_INTERNAL_BASE` | The provider as this server sees it — redeeming the authorization code never leaves the internal network. |
+| `SECRETDROP_STORE_DIR` | Where secrets live. Defaults to `.secretdrop-store` next to the code. Configurable so the test suite does not write into the real store — before it existed, every run left its own secrets mixed in with people's, under the same automatic cleanup. |
+
+## Tests
+
+```bash
+npm test           # unit tests, then the HTTP suites
+npm run test:unit  # just the pure functions
+npm run test:http  # just the suites, needs a build first
+```
+
+The unit tests cover the two functions that were **actually broken** when this
+service was audited — the id validation and the range clamp — plus the one that
+holds the whole promise together: two requests arriving at once for the same secret
+have to be talking about the same object. If each gets its own copy, each keeps its
+own view count, all of them think they are the first, and a one-time secret goes out
+to all of them. That was proven real by widening the window on purpose: **thirty
+readers, thirty copies of a single-use secret**.
+
+The HTTP suites start their own server with its own store. `test-auth` is the door;
+`test-secretos` is the promise — read once and no more, expiry, the caps, and the
+identifier that comes from the URL.
+
+That last one is worth a note. The suite drops **two decoys outside the store**, one
+expired and one live, because the obvious version of the test proved nothing: asking
+for `../../etc/passwd` returns 404 whether the validation is there or not, since
+there is no `meta.json` behind it. With a real file on the other side, removing the
+validation shows both halves of what was once a live vulnerability — the live decoy
+gets read, and the expired one gets **deleted**.
 
 ## API
 
