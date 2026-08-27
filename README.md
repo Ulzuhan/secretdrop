@@ -53,7 +53,7 @@ Until OIDC is configured nobody can sign in to create secrets — set the variab
 | `POST /api/secrets` | account | Store ciphertext + IV; returns the id. |
 | `GET /api/secrets` | account | List live secrets on this instance (metadata only, never ciphertext). |
 | `GET /api/secrets/:id` | none | Fetch ciphertext + IV; counts toward the view budget. |
-| `POST /api/cleanup` | none | Purge expired and burned secrets. |
+| `POST /api/cleanup` | account | Purge expired and burned secrets. |
 
 ## Stack
 
