@@ -82,7 +82,16 @@ arrancar() {
   # Almacén aparte, y no el de verdad. Sin esto cada tirada de pruebas dejaba sus
   # secretos mezclados con los de la gente, en el mismo directorio y con la misma
   # limpieza automática pasándoles por encima.
-  SECRETDROP_STORE_DIR="$ALMACEN" \
+  # Se arranca el artefacto standalone, que es el que ejecuta producción y el que
+  # se empaquetará en la imagen. `next start` sirve `.next`, que es otra cosa.
+  #
+  # OJO: las asignaciones van encadenadas con `\`, y meter un comentario entre
+  # medias rompe la continuación **en silencio** — el servidor arranca igual, pero
+  # sin ninguna variable. Por eso este comentario está aquí y no ahí abajo.
+  # El servidor standalone no acepta `-p`: toma PORT y HOSTNAME del entorno, y sin
+  # HOSTNAME escucha en 0.0.0.0 — comprobado.
+  PORT="$PUERTO" HOSTNAME=127.0.0.1 \
+    SECRETDROP_STORE_DIR="$ALMACEN" \
     SECRETDROP_MAX_STORE_BYTES=65536 \
     SECRETDROP_SESSION_SECRET="$SECRETDROP_SESSION_SECRET" \
     SECRETDROP_OIDC_CLIENT_ID=pruebas \
@@ -91,7 +100,7 @@ arrancar() {
     SECRETDROP_OIDC_PUBLIC_BASE="http://127.0.0.1:9999" \
     SECRETDROP_OIDC_INTERNAL_BASE="http://127.0.0.1:9999" \
     SECRETDROP_OIDC_APP_SLUG=secretdrop \
-    ./node_modules/.bin/next start -p "$PUERTO" >"$LOG" 2>&1 &
+    node .next/standalone/server.js >"$LOG" 2>&1 &
   servidor=$!
 
   for _ in $(seq 1 90); do
