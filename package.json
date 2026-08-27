@@ -1,6 +1,22 @@
 {
   "name": "secretdrop",
   "version": "0.1.0",
+  "description": "One-time secret sharing, encrypted in the browser: the key travels in the URL fragment and the server only ever sees ciphertext.",
+  "license": "MIT",
+  "author": "Ulzuhan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ulzuhan/secretdrop.git"
+  },
+  "keywords": [
+    "secrets",
+    "one-time",
+    "burn-after-reading",
+    "encryption",
+    "webcrypto",
+    "self-hosted",
+    "nextjs"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev -p 3461",

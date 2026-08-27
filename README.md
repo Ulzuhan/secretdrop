@@ -3,6 +3,10 @@
 **Share a secret once.** Encrypted in the browser before it leaves, burned the moment it is read. Self-hosted.
 
 [![CI](https://github.com/Ulzuhan/secretdrop/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/secretdrop/actions/workflows/ci.yml)
+[![Container image](https://github.com/Ulzuhan/secretdrop/actions/workflows/docker.yml/badge.svg)](https://github.com/Ulzuhan/secretdrop/pkgs/container/secretdrop)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+![Send it once, then it's gone — and what the second person to click the link would see: a burned secret with nothing left on the server](assets/screenshot.jpg)
 
 Passwords, API keys and one-off credentials do not belong in chat history or email threads. SecretDrop turns them into a link that works exactly as many times as you allow — once, by default — and then destroys itself.
 
