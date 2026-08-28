@@ -4,7 +4,7 @@ SecretDrop debe ejecutarse como **una sola instancia** detrás de un proxy TLS. 
 
 ## Docker Compose
 
-1. Copia `.env.example` a `.env`, genera `SECRETDROP_SESSION_SECRET` con `openssl rand -hex 32` y configura OIDC con URLs HTTPS públicas.
+1. Copia `.env.example` a `.env`, genera `SECRETDROP_SESSION_SECRET` con `openssl rand -hex 32` y configura OIDC con URLs HTTPS públicas. Añade `SECRETDROP_ENROLL_URL` con el flujo de alta de tu proveedor: es el botón «Request an account» de la portada y sin ella no aparece — que es lo correcto si tu proveedor no tiene alta autoservicio.
 2. Ejecuta `docker compose up -d --build`.
 3. Publica únicamente el proxy HTTPS; Compose enlaza la aplicación a `127.0.0.1:3461`.
 

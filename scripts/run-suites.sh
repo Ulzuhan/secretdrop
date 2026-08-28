@@ -100,6 +100,7 @@ arrancar() {
     SECRETDROP_OIDC_PUBLIC_BASE="http://127.0.0.1:9999" \
     SECRETDROP_OIDC_INTERNAL_BASE="http://127.0.0.1:9999" \
     SECRETDROP_OIDC_APP_SLUG=secretdrop \
+    SECRETDROP_ENROLL_URL="https://idp.example.invalid/if/flow/enroll-secretdrop/" \
     node .next/standalone/server.js >"$LOG" 2>&1 &
   servidor=$!
 

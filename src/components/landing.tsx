@@ -3,6 +3,12 @@ import Link from "next/link";
 /**
  * What somebody without a session sees.
  *
+ * `enrollUrl` —dónde se pide cuenta— llega por parámetro y sale del entorno. Estaba
+ * escrito a fuego aquí, apuntando al Authentik de quien escribió esto, en un repositorio
+ * con licencia MIT: quien lo desplegara mandaba a sus visitantes a pedir cuenta en casa
+ * ajena. Sin él no hay botón de alta y la portada se reordena: entrar pasa a ser la
+ * acción principal, que es la única que lleva a alguna parte.
+ *
  * Server-rendered with no client JavaScript: it is the first thing a stranger
  * loads, and there is nothing here that needs hydrating to be useful.
  *
@@ -10,7 +16,7 @@ import Link from "next/link";
  * already been opened and is therefore gone. Showing the ending explains the
  * product better than any amount of copy about encryption.
  */
-export function Landing() {
+export function Landing({ enrollUrl }: { enrollUrl?: string | null }) {
   return (
     <main className="kc-product-landing flex-1">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
@@ -33,15 +39,21 @@ export function Landing() {
             </p>
 
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-              <Link
-                href="https://auth.kaicorplabs.com/if/flow/enroll-secretdrop/"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-7 text-base font-medium text-background transition-opacity hover:opacity-90"
-              >
-                Request an account
-              </Link>
+              {enrollUrl && (
+                <Link
+                  href={enrollUrl}
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-7 text-base font-medium text-background transition-opacity hover:opacity-90"
+                >
+                  Request an account
+                </Link>
+              )}
               <Link
                 href="/api/auth/login"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-border px-7 text-base font-medium transition-colors hover:bg-surface"
+                className={
+                  enrollUrl
+                    ? "inline-flex h-12 items-center justify-center rounded-xl border border-border px-7 text-base font-medium transition-colors hover:bg-surface"
+                    : "inline-flex h-12 items-center justify-center rounded-xl bg-accent px-7 text-base font-medium text-background transition-opacity hover:opacity-90"
+                }
               >
                 Sign in
               </Link>
@@ -49,9 +61,14 @@ export function Landing() {
             <p className="mt-3 text-xs text-muted">
               Opening a secret needs no account — only creating one does.
             </p>
-            <p className="mt-1 text-xs text-muted">
-              Already have a KaiCorp Labs account? Use the same button — it asks for access to this one.
-            </p>
+            {/* Sin nombrar a nuestro proveedor: esto lo lee quien despliegue SecretDrop
+                en su casa. Solo se enseña cuando hay un alta que ofrecer. */}
+            {enrollUrl && (
+              <p className="mt-1 text-xs text-muted">
+                Already have an account? That same button is where you ask for access to
+                this one.
+              </p>
+            )}
           </div>
 
           <DemoCard />
@@ -109,10 +126,10 @@ export function Landing() {
             to leak.
           </p>
           <Link
-            href="https://auth.kaicorplabs.com/if/flow/enroll-secretdrop/"
+            href={enrollUrl ?? "/api/auth/login"}
             className="mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-base font-medium text-background transition-opacity hover:opacity-90"
           >
-            Request an account
+            {enrollUrl ? "Request an account" : "Sign in"}
             <span aria-hidden>→</span>
           </Link>
         </div>

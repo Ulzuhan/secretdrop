@@ -176,3 +176,32 @@ export function safeNext(raw: string | undefined | null): string {
   if (limpio.startsWith("//") || limpio.startsWith("/\\")) return "/";
   return limpio;
 }
+
+/**
+ * Dónde se manda a quien no tiene cuenta a pedir una.
+ *
+ * Es propio de cada despliegue, así que llega por entorno. Estaba escrito a fuego en la
+ * portada —el flujo de alta de NUESTRO Authentik, dos veces— y esto es un repositorio
+ * con licencia MIT: cualquiera que lo desplegara le ponía a sus visitantes un botón de
+ * alta hacia el proveedor de identidad de un desconocido. Sin la variable no hay botón,
+ * que es además lo correcto si el proveedor no tiene alta autoservicio.
+ *
+ * No reutiliza `validUrl`: un flujo de Authentik termina en barra y puede llevar
+ * parámetros, y aquélla los quita o los rechaza.
+ */
+export function enrollUrl(): string | null {
+  const raw = process.env.SECRETDROP_ENROLL_URL?.trim();
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw);
+    // https, porque es un enlace donde alguien va a escribir una contraseña. El
+    // loopback en http se admite por lo mismo que en el proveedor: desarrollo.
+    const loopback = ["127.0.0.1", "localhost", "::1"].includes(url.hostname);
+    if (url.protocol !== "https:" && !(loopback && url.protocol === "http:")) return null;
+    if (url.username || url.password) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
