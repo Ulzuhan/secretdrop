@@ -50,6 +50,7 @@ Until OIDC is configured nobody can sign in to create secrets — set the variab
 | `SECRETDROP_OIDC_PUBLIC_BASE` | The provider as the browser sees it. |
 | `SECRETDROP_OIDC_INTERNAL_BASE` | The provider as this server sees it — redeeming the authorization code never leaves the internal network. |
 | `SECRETDROP_ENROLL_URL` | Where somebody with no account is sent to ask for one: your provider's enrolment flow. It is the landing page's "Request an account" button, and without it there is no button — which is right when the provider has no self-service sign-up. It used to be a constant in the source pointing at *our* provider, so anyone deploying this handed their visitors a sign-up link into a stranger's identity provider. |
+| `SECRETDROP_ACCOUNT_URL` | The provider's own account page — email, password, second factor, sessions. None of that belongs to this app, and without it the account menu simply does not link anywhere. Authentik serves it at `/if/user/`. |
 | `SECRETDROP_SESSION_TTL_HOURS` | Signed-session lifetime; default 12 h, clamped to 1–24 h. |
 | `SECRETDROP_OIDC_TIMEOUT_MS` | OIDC network timeout; default 10 s. |
 | `SECRETDROP_MAX_STORE_BYTES` | Total on-disk quota; default 100 MiB. |

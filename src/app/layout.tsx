@@ -3,7 +3,8 @@ import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { KaiCorpFooter } from "@/components/kaicorp-footer";
 import { KaiCorpHeader } from "@/components/kaicorp-header";
-import { SignOut } from "@/components/sign-out";
+import { KaiCorpAccountMenu } from "@/components/kaicorp-account-menu";
+import { accountUrl } from "@/lib/oidc";
 import { currentAccount } from "@/lib/auth";
 
 const display = Space_Grotesk({ variable: "--font-display", weight: ["500", "700"], subsets: ["latin"] });
@@ -55,7 +56,15 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <KaiCorpHeader app="SecretDrop">{account && <SignOut email={account.email} />}</KaiCorpHeader>
+        <KaiCorpHeader app="SecretDrop">
+          {/* El menú de cuenta es cromado común: lo reparte `sync-theme.sh` como la
+              cabecera y el pie. Aquí había el correo en texto y un botón «Sign out» al
+              lado, que era la cuarta forma distinta de resolver lo mismo entre las cinco
+              aplicaciones. */}
+          {account && (
+            <KaiCorpAccountMenu email={account.email} accountUrl={accountUrl()} />
+          )}
+        </KaiCorpHeader>
         {children}
         <KaiCorpFooter current="secretdrop" />
       </body>

@@ -189,8 +189,23 @@ export function safeNext(raw: string | undefined | null): string {
  * No reutiliza `validUrl`: un flujo de Authentik termina en barra y puede llevar
  * parámetros, y aquélla los quita o los rechaza.
  */
+/**
+ * La página de la cuenta en el proveedor: correo, contraseña, segundo factor, sesiones.
+ * Nada de eso lo lleva esta aplicación, y sin esta variable no se enlaza a ninguna
+ * parte. La ruta es cosa de cada proveedor —Authentik la sirve en `/if/user/`—, así que
+ * llega entera por entorno.
+ */
+export function accountUrl(): string | null {
+  return enlaceExterno(process.env.SECRETDROP_ACCOUNT_URL);
+}
+
 export function enrollUrl(): string | null {
-  const raw = process.env.SECRETDROP_ENROLL_URL?.trim();
+  return enlaceExterno(process.env.SECRETDROP_ENROLL_URL);
+}
+
+/** La regla común a los dos enlaces que salen de la aplicación hacia el proveedor. */
+function enlaceExterno(valor: string | undefined): string | null {
+  const raw = valor?.trim();
   if (!raw) return null;
 
   try {
