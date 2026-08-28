@@ -10,9 +10,35 @@ const display = Space_Grotesk({ variable: "--font-display", weight: ["500", "700
 const sans = Inter({ variable: "--font-sans", weight: ["400", "500"], subsets: ["latin"] });
 const mono = JetBrains_Mono({ variable: "--font-mono", weight: ["400", "500"], subsets: ["latin"] });
 
+/**
+ * The public origin, for canonical and social previews.
+ *
+ * It comes from SECRETDROP_PUBLIC_HOST, which already exists for the origin
+ * check: no new variable, and whoever deploys this on their own domain gets
+ * their own canonical without touching code. Unset, none is emitted — Next
+ * would otherwise resolve relative URLs against localhost, and a canonical
+ * pointing at localhost is worse than no canonical at all.
+ */
+const publicHost = process.env.SECRETDROP_PUBLIC_HOST?.trim();
+const base = publicHost ? new URL(`https://${publicHost}`) : undefined;
+
+const TITLE = "SecretDrop — one-time secrets, encrypted in your browser";
+const DESCRIPTION =
+  "Share a password once: encrypted before it leaves your browser, burned the moment it is read. The server only ever sees ciphertext. Self-hosted and open source.";
+
 export const metadata: Metadata = {
-  title: "SecretDrop — Share Secrets Securely",
-  description: "Encrypt, share, self-destruct. Your secrets burn after reading.",
+  ...(base ? { metadataBase: base, alternates: { canonical: "/" } } : {}),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    siteName: "SecretDrop",
+    locale: "en_US",
+    ...(base ? { url: "/", images: [{ url: "/og.jpg", width: 760, height: 475, alt: "SecretDrop: a secret that has already been read, with nothing left on the server" }] } : {}),
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 /**

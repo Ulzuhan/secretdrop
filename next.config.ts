@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
   // Fija la raíz del proyecto: sin esto, un package-lock.json suelto más arriba
   // en el árbol hace que Next infiera una raíz equivocada y avise en cada build.
   output: "standalone",
+  // El almacén NUNCA dentro del artefacto. El trazador seguía los ficheros que
+  // la ruta de limpieza abre y se llevaba los secretos de la gente al build —
+  // se vio como un aviso al construir, que es la única señal que da. Igual que
+  // TabUp con su `data/`.
+  outputFileTracingRoot: import.meta.dirname,
+  outputFileTracingExcludes: { "**": ["./.secretdrop-store/**/*"] },
   turbopack: {
     root: import.meta.dirname,
   },
