@@ -1,6 +1,6 @@
 {
   "name": "secretdrop",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "One-time secret sharing, encrypted in the browser: the key travels in the URL fragment and the server only ever sees ciphertext.",
   "license": "MIT",
   "author": "Ulzuhan",
