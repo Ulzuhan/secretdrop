@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAccount } from "@/lib/auth";
+import { currentAccount, requireAccount } from "@/lib/auth";
 import { jsonBody } from "@/lib/body";
 import { cleanupExpired, enRango, getStore, nuevoId, saveNewMeta, type SecretMeta } from "@/lib/store";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
@@ -51,10 +51,14 @@ export async function POST(request: NextRequest) {
     const views = enRango(maxViews, 1, 10, 1); // 1 a 10 lecturas
 
     const id = nuevoId();
+    const cuenta = await currentAccount();
     const meta: SecretMeta = {
       id,
       ciphertext,
       iv,
+      // De quién es: decide qué listado lo enseña, y nada más — leerlo sigue
+      // sin pedir cuenta, porque quien recibe el enlace no tiene por qué tenerla.
+      owner: cuenta?.sub,
       expiresAt: Date.now() + ttl * 60 * 60 * 1000,
       maxViews: views,
       viewCount: 0,
@@ -79,14 +83,20 @@ export async function POST(request: NextRequest) {
 
 // ─── GET /api/secrets — List active secrets (metadata only, no ciphertext) ─
 export async function GET() {
-  // El listado enseña los secretos vivos de esta instancia: solo con cuenta.
   const unauthorized = await requireAccount();
   if (unauthorized) return unauthorized;
 
+  // TUS secretos vivos, no los de la instancia. Esto listaba todos a cualquiera
+  // con cuenta, y el id que enseñaba es la mitad servidor de la capacidad: con
+  // él se puede CONSUMIR el secreto —leerlo cuenta la vista y lo quema— aunque
+  // no descifrarlo. O sea que cualquier cuenta podía destruir los secretos de
+  // las demás y ver cuántos había. Los anteriores al campo `owner` no se
+  // enseñan a nadie: sus enlaces funcionan y caducan solos (7 días como mucho).
+  const cuenta = await currentAccount();
   const now = Date.now();
   const store = getStore();
   const secrets = Array.from(store.values())
-    .filter((s) => s.expiresAt > now && !s.burned)
+    .filter((s) => s.expiresAt > now && !s.burned && s.owner && s.owner === cuenta?.sub)
     .map((s) => ({
       id: s.id,
       expiresAt: s.expiresAt,

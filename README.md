@@ -94,7 +94,7 @@ gets read, and the expired one gets **deleted**.
 | Route | Auth | Purpose |
 |---|---|---|
 | `POST /api/secrets` | account | Store ciphertext + IV; returns the id. |
-| `GET /api/secrets` | account | List live secrets on this instance (metadata only, never ciphertext). |
+| `GET /api/secrets` | account | List **your** live secrets (metadata only, never ciphertext). It used to list everyone's — and since reading consumes a view, the ids it leaked let any account *burn* other people's secrets without being able to decrypt them. Secrets store their creator's `sub` now; ones from before are listed to nobody and expire on their own (7 days at most). |
 | `GET /api/secrets/:id` | none | Fetch ciphertext + IV; counts toward the view budget. |
 | `POST /api/cleanup` | account | Purge expired and burned secrets. |
 

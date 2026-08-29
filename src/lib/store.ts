@@ -41,6 +41,17 @@ export interface SecretMeta {
   createdAt: number;
   burned: boolean;
   burnedAt?: number;
+  /**
+   * El `sub` de quien lo creó. No existía, y el listado enseñaba los secretos
+   * vivos de TODAS las cuentas a cualquiera con una: la herramienta nació con
+   * un solo operador y la cuenta era la puerta, no el inquilino. El contenido
+   * seguía a salvo —la clave viaja en el fragmento y nunca llega aquí— pero el
+   * listado regalaba los IDs, y el id es la mitad servidor de la capacidad:
+   * con él, cualquier cuenta podía CONSUMIR el secreto de otra (leerlo cuenta
+   * la vista y lo quema), destruyéndolo sin poder descifrarlo. Un secreto sin
+   * dueño (anterior a este campo) no se enseña a nadie y caduca solo.
+   */
+  owner?: string;
 }
 
 const globalStore = globalThis as typeof globalThis & {

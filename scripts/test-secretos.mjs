@@ -184,4 +184,35 @@ check(
   200
 );
 
+/**
+ * El inquilino, no solo la puerta.
+ *
+ * El listado enseñaba los secretos vivos de TODAS las cuentas a cualquiera con
+ * una, y el id que enseñaba es la mitad servidor de la capacidad: con él se
+ * puede CONSUMIR un secreto —leerlo cuenta la vista y lo quema— aunque no
+ * descifrarlo. Cualquier cuenta podía destruir los secretos de las demás. Lo
+ * destapó el operador el primer día con un segundo usuario real: veía que el
+ * otro había creado un secreto sin poder abrirlo — y lo grave no era verlo,
+ * era poder quemarlo.
+ */
+console.log("\nCada cuenta ve lo suyo, y solo lo suyo");
+const cuentaA = sesion({ sub: "cuenta-a", email: "a@example.invalid" });
+const cuentaB = sesion({ sub: "cuenta-b", email: "b@example.invalid" });
+
+const deA = await api("/api/secrets", {
+  cookie: cuentaA, metodo: "POST",
+  cuerpo: { ciphertext: "c".repeat(64), iv: "aaaabbbbccccdddd" },
+});
+check("a crea un secreto", deA.status, 200);
+
+const listaA = await api("/api/secrets", { cookie: cuentaA });
+const listaB = await api("/api/secrets", { cookie: cuentaB });
+check("a lo ve en su lista", listaA.body.secrets.some((x) => x.id === deA.body.id), true);
+check("b NO lo ve — ni sabe que existe", listaB.body.secrets.some((x) => x.id === deA.body.id), false);
+
+// Con el id fuera del listado, quemar lo ajeno exige tener el enlace — que es
+// exactamente la capacidad. El enlace en sí sigue siendo público por diseño.
+const leido = await api(`/api/secrets/${deA.body.id}`);
+check("quien tiene el enlace sigue leyendo sin cuenta", leido.status, 200);
+
 resumen();
