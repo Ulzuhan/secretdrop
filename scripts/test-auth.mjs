@@ -52,6 +52,20 @@ for (const destino of [
   check(`next=${destino.trim().slice(0, 20)} no saca de casa`, sale, false);
 }
 
+/**
+ * Y a DÓNDE dentro del proveedor. El idp de pruebas anuncia rutas de Keycloak
+ * (`/protocol/openid-connect/auth`), que no se parecen a las de Authentik
+ * (`/application/o/authorize/`). Que el desvío caiga en la primera es la prueba
+ * de que esta aplicación obedece al documento del proveedor y no lleva ninguna
+ * ruta escrita a mano: el día que alguien vuelva a escribirla, esto falla.
+ */
+const desvio = (await fetch(`${BASE}/api/auth/login?next=%2F`, { redirect: "manual" }))
+  .headers.get("location") ?? "";
+check("va a la ruta que ANUNCIA el proveedor, no a una escrita a mano",
+  desvio.includes("/protocol/openid-connect/auth"), true);
+check("sin rastro de la forma de ningún proveedor concreto",
+  desvio.includes("/application/o/authorize"), false);
+
 console.log("\nLa vuelta del proveedor");
 // El `state` es lo único que impide que alguien nos haga abrir sesión con SU
 // código.

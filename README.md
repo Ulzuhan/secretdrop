@@ -47,7 +47,7 @@ Until OIDC is configured nobody can sign in to create secrets — set the variab
 | `SECRETDROP_SESSION_SECRET` | HMAC key that signs the session cookie. Without it (and an OIDC client), nobody can sign in. |
 | `SECRETDROP_OIDC_CLIENT_ID` / `_SECRET` | OIDC client credentials. |
 | `SECRETDROP_OIDC_REDIRECT_URI` | Must match one of the URIs registered in the provider. |
-| `SECRETDROP_OIDC_PUBLIC_BASE` | The provider as the browser sees it. |
+| `SECRETDROP_OIDC_ISSUER` | The provider's issuer URL. Every endpoint (authorize, token, userinfo, end-session, JWKS) is read from its `/.well-known/openid-configuration`, so no provider-specific paths are baked in |
 | `SECRETDROP_OIDC_INTERNAL_BASE` | The provider as this server sees it — redeeming the authorization code never leaves the internal network. |
 | `SECRETDROP_ENROLL_URL` | Where somebody with no account is sent to ask for one: your provider's enrolment flow. It is the landing page's "Request an account" button, and without it there is no button — which is right when the provider has no self-service sign-up. It used to be a constant in the source pointing at *our* provider, so anyone deploying this handed their visitors a sign-up link into a stranger's identity provider. |
 | `SECRETDROP_ACCOUNT_URL` | The provider's own account page — email, password, second factor, sessions. None of that belongs to this app, and without it the account menu simply does not link anywhere. Authentik serves it at `/if/user/`. |
