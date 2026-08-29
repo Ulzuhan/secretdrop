@@ -1,6 +1,6 @@
 {
   "name": "secretdrop",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "One-time secret sharing, encrypted in the browser: the key travels in the URL fragment and the server only ever sees ciphertext.",
   "license": "MIT",
   "author": "Ulzuhan",
@@ -27,7 +27,8 @@
     "test:watch": "vitest",
     "test:unit": "vitest run",
     "test:http": "./scripts/run-suites.sh",
-    "postbuild": "node scripts/prepare-standalone.mjs"
+    "postbuild": "node scripts/prepare-standalone.mjs",
+    "test:backchannel": "bash scripts/test-backchannel.sh"
   },
   "dependencies": {
     "next": "^16.2.12",
