@@ -58,6 +58,17 @@ Until OIDC is configured nobody can sign in to create secrets — set the variab
 | `SECRETDROP_STORE_DIR` | Where secrets live. Defaults to `.secretdrop-store` next to the code. Configurable so the test suite does not write into the real store — before it existed, every run left its own secrets mixed in with people's, under the same automatic cleanup. |
 | `SECRETDROP_PUBLIC_HOST` | Public hostname the origin check compares against. Unset, the incoming `Host` is used, which is right behind a tunnel that preserves it — verified. Only needed behind a proxy that rewrites `Host` with an internal name. |
 
+
+**Losing access takes effect immediately.** `POST /api/auth/backchannel-logout`
+implements OIDC Back-Channel Logout — point the provider at it in the client's
+*Logout URI*. The session here is a signed cookie with no server-side state, so
+there is nothing to delete: the notification records that person on a small
+revocation list (an opaque id and a date, pruned automatically), and their
+cookies stop working from that moment. Sessions also expire on their own after
+SECRETDROP_SESSION_TTL_HOURS (12 by default, 24 maximum), which is the bound that
+holds even when no notification arrives — the provider only notifies clients
+whose access token is still alive.
+
 ## Production deployment
 
 See [`DEPLOYMENT.md`](DEPLOYMENT.md). Run one application process behind a TLS reverse proxy; in-process locks, quotas and rate limits are not distributed. Do not back up the payload store, because restoring it can resurrect data that should have expired.

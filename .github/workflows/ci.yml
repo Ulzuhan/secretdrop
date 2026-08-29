@@ -29,6 +29,10 @@ jobs:
       - run: npm run build
       - run: npm run test:http
 
+      # Con un proveedor de mentira que FIRMA de verdad: el aviso de cierre de
+      # sesión no se puede probar de otra forma.
+      - run: npm run test:backchannel
+
       # After the build on purpose: Next generates the route types the checker
       # relies on (.next/types) during the build.
       - run: npx tsc --noEmit

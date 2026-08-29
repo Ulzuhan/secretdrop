@@ -15,6 +15,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { oidcConfigured, type OidcIdentity } from "@/lib/oidc";
+import { revocadaDespuesDe } from "@/lib/revocaciones";
 
 export const SESSION_COOKIE = "secretdrop_session";
 const configuredTtlHours = Number(process.env.SECRETDROP_SESSION_TTL_HOURS ?? 12);
@@ -47,7 +48,10 @@ export function issueToken(identity: OidcIdentity): string | null {
   const key = secret();
   if (!key) return null;
   const payload = Buffer.from(
-    JSON.stringify({ ...identity, exp: Date.now() + SESSION_TTL_MS })
+    // `iat` es lo que permite revocar sin guardar sesiones: la lista de
+    // revocación dice desde cuándo dejó de valer lo de alguien, y sin saber
+    // cuándo se emitió esta cookie no se puede comparar. Ver lib/revocaciones.ts.
+    JSON.stringify({ ...identity, iat: Date.now(), exp: Date.now() + SESSION_TTL_MS })
   ).toString("base64url");
   return `${payload}.${sign(payload, key)}`;
 }
@@ -73,6 +77,12 @@ export function readToken(token: string | undefined): Account | null {
     const claims = JSON.parse(Buffer.from(payload, "base64url").toString());
     if (typeof claims.exp !== "number" || claims.exp <= Date.now()) return null;
     if (typeof claims.sub !== "string" || typeof claims.email !== "string") return null;
+    // Las cookies emitidas antes de que existiera `iat` se fechan por su
+    // caducidad: se emitieron una vida de sesión antes. Es exacto mientras el
+    // tope no cambie, y en el peor caso revoca de más, que es el lado bueno
+    // por el que equivocarse.
+    const emitida = typeof claims.iat === "number" ? claims.iat : claims.exp - SESSION_TTL_MS;
+    if (revocadaDespuesDe(claims.sub, emitida)) return null;
     return { sub: claims.sub, email: claims.email, name: claims.name };
   } catch {
     return null;
