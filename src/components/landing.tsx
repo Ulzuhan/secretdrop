@@ -49,6 +49,7 @@ export function Landing({ enrollUrl }: { enrollUrl?: string | null }) {
               )}
               <Link
                 href="/api/auth/login"
+                prefetch={false}
                 className={
                   enrollUrl
                     ? "inline-flex h-12 items-center justify-center rounded-xl border border-border px-7 text-base font-medium transition-colors hover:bg-surface"

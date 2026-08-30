@@ -24,4 +24,16 @@ COPY --from=build --chown=secretdrop:secretdrop /app/.next/static ./.next/static
 COPY --from=build --chown=secretdrop:secretdrop /app/public ./public
 USER secretdrop
 EXPOSE 3461
+
+# El healthcheck que faltaba: era la única de las cinco imágenes sin él, y el
+# compose lo compensaba con el smoke de `deploy.sh` — que mira el dominio, no el
+# contenedor, y por tanto no distingue «arrancando» de «arrancado». Sin esto,
+# `deploy.sh` daba por bueno un contenedor que todavía no servía.
+#
+# Se pide un secreto que no existe y se espera un 404: es la ruta que de verdad
+# ejercita el servidor —enruta, entra en la base y responde— sin escribir nada
+# ni depender de sesión. Un 200 en `/` sólo prueba que Next arrancó.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3461)+'/api/secrets/000000000000').then(r=>process.exit(r.status===404?0:1)).catch(()=>process.exit(1))"
+
 CMD ["node", "server.js"]
