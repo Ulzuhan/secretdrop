@@ -7,6 +7,7 @@ export default defineConfig({
     // explícitamente el entorno del navegador con su propia anotación, porque
     // Web Crypto es lo que usa la aplicación de verdad.
     environment: "node",
+    setupFiles: ["./tests/setup.ts"],
     include: ["src/**/*.test.ts"],
   },
   resolve: {

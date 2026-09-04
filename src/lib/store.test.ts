@@ -171,6 +171,29 @@ describe("loadMeta con la caché fría", () => {
 });
 
 describe("consumeSecret", () => {
+  it("a failed creation releases its queue and allows a later creation", async () => {
+    const { writeFile, unlink } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const { STORE_DIR, saveNewMeta, nuevoId, pendingConsumes } = await import("./store");
+    const id = nuevoId();
+    const meta = { id, ciphertext: "encrypted", iv: "iv", expiresAt: Date.now() + 60_000,
+      maxViews: 1, viewCount: 0, createdAt: Date.now(), burned: false };
+    // A file in place of the directory makes the actual filesystem write fail.
+    await writeFile(join(STORE_DIR, id), "collision");
+    await expect(saveNewMeta(meta)).rejects.toThrow();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(pendingConsumes()).toBe(0);
+    await unlink(join(STORE_DIR, id));
+    await expect(saveNewMeta(meta)).resolves.toBe("ok");
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(pendingConsumes()).toBe(0);
+  });
+  it("forgets queues for nonexistent ids after they settle", async () => {
+    const { consumeSecret, nuevoId, pendingConsumes } = await import("./store");
+    await Promise.all(Array.from({ length: 1000 }, () => consumeSecret(nuevoId())));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(pendingConsumes()).toBe(0);
+  });
   it("borra el material antes de entregar la última vista", async () => {
     const { consumeSecret, loadMeta, saveMeta, nuevoId: nuevo } = await import("./store");
     const id = nuevo();

@@ -199,14 +199,15 @@ const consumeChains = new Map<string, Promise<unknown>>();
 function serializeConsume<T>(id: string, task: () => Promise<T>): Promise<T> {
   const previous = consumeChains.get(id) ?? Promise.resolve();
   const next = previous.then(task, task);
-  consumeChains.set(
-    id,
-    next.catch(() => {}).finally(() => {
-      if (consumeChains.get(id) === next) consumeChains.delete(id);
-    })
-  );
+  const tail = next.then(() => {}, () => {}).finally(() => {
+    if (consumeChains.get(id) === tail) consumeChains.delete(id);
+  });
+  consumeChains.set(id, tail);
   return next;
 }
+
+/** Active per-id queues, excluding completed operations. */
+export function pendingConsumes(): number { return consumeChains.size; }
 
 async function deleteBeforeDelivery(id: string): Promise<boolean> {
   try {
