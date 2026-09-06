@@ -64,7 +64,7 @@ json.dump({"id": "senuelovivo", "ciphertext": "TAMPOCO-DEBERIA-SALIR", "iv": "aa
           open(sys.argv[1], "w"))
 PY
 
-TODAS=(auth secretos contratos)
+TODAS=(auth secretos contratos interfaz)
 SUITES=("${@:-${TODAS[@]}}")
 [ $# -gt 0 ] && SUITES=("$@")
 

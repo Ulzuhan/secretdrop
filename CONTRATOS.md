@@ -105,6 +105,7 @@ El backend Go pasa hoy, con las mismas suites y sin tocarlas:
 | `auth` | 34 | 34 |
 | `secretos` | 53 | 53 |
 | `contratos` | 23 | 23 |
+| `interfaz` | 31 | 31 |
 | `backchannel` | ✓ | ✓ |
 | reinicio en frío y tras rearranque | ✓ | ✓ |
 
@@ -115,10 +116,18 @@ recodificada y su lista de revocación.
 
 CI corre las dos, así que una divergencia se ve el día que aparece.
 
-**Lo que todavía sirve Node y no Go: la interfaz.** La portada de Go es un marco
-mínimo —con el enlace de alta salido del entorno, que eso sí es contrato— y no
-la pantalla de React. Crear, compartir y descifrar en el navegador es la
-siguiente entrega.
+**Lo que todavía sirve Node y no Go: la pantalla.** Go ya sirve la capa de
+alrededor —cabeceras, CSP con nonce por respuesta, el visor, `robots.txt` y los
+404 de verdad— y eso está congelado en la suite `interfaz`. Lo que falta es
+React: crear, compartir y descifrar en el navegador. Se separó a propósito,
+porque esa mitad se demuestra con un navegador y ésta no.
+
+**Abrir un enlace no puede gastar el secreto.** `/v/<id>` no lee ni toca el
+almacén: el consumo es la petición explícita del visor a `/api/secrets/<id>`, y
+sin clave en el fragmento no llega a hacerla. La suite abre el visor tres veces
+y comprueba que la primera lectura sigue siendo la primera. Es la comprobación
+que más importa de todas: el día que se rompa, nadie lo verá hasta que alguien
+pierda un secreto porque un previsualizador de mensajería abrió su enlace.
 
 Y dos cosas que el port dejó escritas porque se descubrieron rompiéndose:
 

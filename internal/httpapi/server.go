@@ -4,6 +4,8 @@
 package httpapi
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"html/template"
@@ -84,9 +86,87 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("POST /api/auth/backchannel-logout", s.backchannelLogout)
 	mux.HandleFunc("GET /api/health", s.salud)
+	mux.HandleFunc("GET /v/{id}", s.visor)
+	mux.HandleFunc("GET /robots.txt", s.robots)
 	mux.HandleFunc("GET /", s.portada)
-	return mux
+	// Las cabeceras van en una sola capa: si cada manejador pusiera las suyas,
+	// la que se olvidara no fallaría ninguna prueba hasta que alguien mirara.
+	return conCabeceras(mux)
 }
+
+// Las mismas que declaraba `next.config.ts`, en todas las respuestas.
+func conCabeceras(siguiente http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		h.Set("Strict-Transport-Security", "max-age=31536000")
+		siguiente.ServeHTTP(w, r)
+	})
+}
+
+// csp devuelve la política y el nonce de ESTA respuesta. Va sólo en el HTML,
+// como el middleware de Next, que excluye /api de su matcher.
+//
+// Sin `unsafe-eval`: en desarrollo Next lo añadía, y aquí no hay desarrollo que
+// valga —el binario que se prueba es el que se despliega—.
+func csp() (string, string) {
+	crudo := make([]byte, 16)
+	if _, err := rand.Read(crudo); err != nil {
+		return "", ""
+	}
+	nonce := base64.StdEncoding.EncodeToString(crudo)
+	return strings.Join([]string{
+		"default-src 'self'",
+		"script-src 'self' 'nonce-" + nonce + "' 'strict-dynamic'",
+		"style-src 'self' 'unsafe-inline'",
+		"img-src 'self' data:",
+		"font-src 'self'",
+		"connect-src 'self'",
+		"object-src 'none'",
+		"base-uri 'none'",
+		"form-action 'self'",
+		"frame-ancestors 'none'",
+	}, "; "), nonce
+}
+
+func (s *Server) html(w http.ResponseWriter, estado int) string {
+	politica, nonce := csp()
+	h := w.Header()
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	h.Set("Cache-Control", "no-store")
+	if politica != "" {
+		h.Set("Content-Security-Policy", politica)
+	}
+	w.WriteHeader(estado)
+	return nonce
+}
+
+// visor: la pantalla que descifra. **No lee ni consume el almacén.** El consumo
+// es la petición explícita del visor a /api/secrets/<id>, y sin clave en el
+// fragmento no llega a hacerla. Renderizar aquí convertiría abrir un enlace
+// —o que lo abriera un previsualizador de mensajería— en gastar el secreto.
+//
+// `noindex` va en el documento: un enlace de un solo uso no se indexa.
+func (s *Server) visor(w http.ResponseWriter, r *http.Request) {
+	nonce := s.html(w, http.StatusOK)
+	_ = plantillaVisor.Execute(w, map[string]any{"ID": r.PathValue("id"), "Nonce": nonce})
+}
+
+func (s *Server) robots(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = io.WriteString(w, "User-agent: *\nAllow: /$\nDisallow: /v/\n")
+}
+
+var plantillaVisor = template.Must(template.New("visor").Parse(
+	`<!doctype html><html lang=en><meta charset=utf-8>
+<meta name="robots" content="noindex, nofollow">
+<title>SecretDrop</title>
+<main data-secret-id="{{.ID}}"><h1>SecretDrop</h1></main>
+`))
 
 // salud no consume nada ni enseña configuración: sólo dice que se está en pie.
 // En Node esto se hacía pidiendo un id de secreto inventado y esperando un 404.
@@ -108,11 +188,9 @@ func (s *Server) portada(w http.ResponseWriter, r *http.Request) {
 		escribirJSON(w, http.StatusNotFound, map[string]any{"error": "Not found"})
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	nonce := s.html(w, http.StatusOK)
 	if err := plantillaPortada.Execute(w, map[string]any{
+		"Nonce":  nonce,
 		"Alta":   os.Getenv("SECRETDROP_ENROLL_URL"),
 		"Cuenta": os.Getenv("SECRETDROP_ACCOUNT_URL"),
 	}); err != nil {

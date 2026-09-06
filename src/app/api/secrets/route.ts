@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { currentAccount, requireAccount } from "@/lib/auth";
-import { jsonBody } from "@/lib/body";
+import { jsonBody, sinGuardar } from "@/lib/body";
 import { cleanupExpired, enRango, getStore, nuevoId, saveNewMeta, type SecretMeta } from "@/lib/store";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await jsonBody(request);
     if (!body) {
-      return NextResponse.json({ error: "Malformed request body" }, { status: 400 });
+      return sinGuardar({ error: "Malformed request body" }, { status: 400 });
     }
     const { ciphertext, iv, ttlHours, maxViews } = body as {
       ciphertext?: unknown;
@@ -54,10 +54,10 @@ export async function POST(request: NextRequest) {
     };
 
     if (typeof ciphertext !== "string" || typeof iv !== "string" || !ciphertext || !iv) {
-      return NextResponse.json({ error: "Missing ciphertext or iv" }, { status: 400 });
+      return sinGuardar({ error: "Missing ciphertext or iv" }, { status: 400 });
     }
     if (ciphertext.length > MAX_CIPHERTEXT || iv.length > MAX_IV) {
-      return NextResponse.json({ error: "Secret too large" }, { status: 413 });
+      return sinGuardar({ error: "Secret too large" }, { status: 413 });
     }
 
     const ttl = enRango(ttlHours, 1, 168, 24); // 1h a 7d
@@ -80,17 +80,17 @@ export async function POST(request: NextRequest) {
     };
 
     if ((await saveNewMeta(meta)) === "quota") {
-      return NextResponse.json({ error: "Secret store is full" }, { status: 507 });
+      return sinGuardar({ error: "Secret store is full" }, { status: 507 });
     }
 
-    return NextResponse.json({
+    return sinGuardar({
       id,
       expiresAt: meta.expiresAt,
       maxViews: meta.maxViews,
     });
   } catch (error) {
     console.error("Create secret error:", error);
-    return NextResponse.json({ error: "Failed to create secret" }, { status: 500 });
+    return sinGuardar({ error: "Failed to create secret" }, { status: 500 });
   }
 }
 
@@ -121,5 +121,5 @@ export async function GET() {
     }))
     .sort((a, b) => b.createdAt - a.createdAt);
 
-  return NextResponse.json({ secrets });
+  return sinGuardar({ secrets });
 }
