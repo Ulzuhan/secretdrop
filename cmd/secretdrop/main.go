@@ -40,7 +40,38 @@ func entero(nombre string, porDefecto, min, max int64) int64 {
 	return n
 }
 
+// sonda: el healthcheck del contenedor, dentro del propio binario porque la
+// imagen final no lleva shell, curl ni node con los que preguntar desde fuera.
+//
+// Pide un secreto que no existe y exige un 404, igual que la imagen de Node.
+// `/api/health` devuelve 200 fijo sin tocar el almacén, así que sólo diría que
+// el proceso arrancó; esta ruta enruta, entra en la base y responde, y no
+// escribe nada ni necesita sesión.
+func sonda() int {
+	puerto := os.Getenv("PORT")
+	if puerto == "" {
+		puerto = "3461"
+	}
+	cliente := &http.Client{Timeout: 4 * time.Second}
+	respuesta, err := cliente.Get("http://127.0.0.1:" + puerto + "/api/secrets/000000000000")
+	if err != nil {
+		return 1
+	}
+	defer respuesta.Body.Close()
+	if respuesta.StatusCode != http.StatusNotFound {
+		return 1
+	}
+	return 0
+}
+
 func main() {
+	if len(os.Args) > 1 {
+		if os.Args[1] != "health" || len(os.Args) > 2 {
+			log.Fatalf("uso: %s [health]", os.Args[0])
+		}
+		os.Exit(sonda())
+	}
+
 	dir := os.Getenv("SECRETDROP_STORE_DIR")
 	if dir == "" {
 		dir = ".secretdrop-store"
