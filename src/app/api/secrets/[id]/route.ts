@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { sinGuardar } from "@/lib/body";
 import { consumeSecret, idValido } from "@/lib/store";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 
@@ -28,19 +28,19 @@ export async function GET(
   const limited = rateLimit("read:" + clientIp(_request), 120, 60_000);
   if (limited) return limited;
   if (!idValido(id)) {
-    return NextResponse.json({ error: ERROR_TEXT.not_found }, { status: 404 });
+    return sinGuardar({ error: ERROR_TEXT.not_found }, { status: 404 });
   }
 
   const result = await consumeSecret(id);
   if (!result.ok) {
-    return NextResponse.json(
+    return sinGuardar(
       { error: ERROR_TEXT[result.reason] },
       { status: ERROR_STATUS[result.reason] }
     );
   }
 
   const meta = result.meta;
-  return NextResponse.json({
+  return sinGuardar({
     id: meta.id,
     ciphertext: meta.ciphertext,
     iv: meta.iv,

@@ -17,12 +17,25 @@ set -m
 
 cd "$(dirname "$0")/.."
 
+# Qué se arranca. Por omisión el artefacto standalone de Next, que es lo que
+# ejecuta producción. Se deja cambiar para poder apuntar ESTAS MISMAS suites a
+# otra implementación del mismo contrato —el port a Go— sin tocar las pruebas:
+# lo que se congela aquí es el comportamiento HTTP y el entorno, no el runtime.
+#
+#   SECRETDROP_TEST_LAUNCH="./secretdrop" ./scripts/run-suites.sh
+#
+# Va sin comillas al usarse, para admitir una orden con argumentos.
+LANZAR="${SECRETDROP_TEST_LAUNCH:-node .next/standalone/server.js}"
+# Fichero cuya fecha delata un build viejo. El de Next no existe en otra
+# implementación, así que la comprobación se salta si no está, avisando.
+SELLO_BUILD="${SECRETDROP_TEST_BUILD_STAMP:-.next/BUILD_ID}"
+
 PUERTO="${PORT:-3992}"
 export BASE="http://127.0.0.1:$PUERTO"
 export SECRETDROP_SESSION_SECRET="${SECRETDROP_SESSION_SECRET:-secreto-de-pruebas-secretdrop-32-bytes-minimo}"
 LOG="$(mktemp)"
 RAIZ_PRUEBAS="$(mktemp -d)"
-ALMACEN="$RAIZ_PRUEBAS/almacen"
+export ALMACEN="$RAIZ_PRUEBAS/almacen"
 
 # Un señuelo FUERA del almacén, con la fecha vencida.
 #
@@ -51,7 +64,7 @@ json.dump({"id": "senuelovivo", "ciphertext": "TAMPOCO-DEBERIA-SALIR", "iv": "aa
           open(sys.argv[1], "w"))
 PY
 
-TODAS=(auth secretos)
+TODAS=(auth secretos contratos interfaz)
 SUITES=("${@:-${TODAS[@]}}")
 [ $# -gt 0 ] && SUITES=("$@")
 
@@ -126,7 +139,7 @@ arrancar() {
     SECRETDROP_OIDC_ISSUER="http://127.0.0.1:9999/application/o/secretdrop/" \
     SECRETDROP_OIDC_INTERNAL_BASE="http://127.0.0.1:9999" \
     SECRETDROP_ENROLL_URL="https://idp.example.invalid/if/flow/enroll-secretdrop/" \
-    node .next/standalone/server.js >"$LOG" 2>&1 &
+    $LANZAR >"$LOG" 2>&1 &
   servidor=$!
 
   for _ in $(seq 1 90); do
@@ -150,9 +163,13 @@ arrancar() {
     echo "en $PUERTO escucha otro servidor, no el de esta tirada"
     return 1
   fi
-  if [ "$(stat -c %Y "/proc/$escucha")" -lt "$(stat -c %Y .next/BUILD_ID)" ]; then
-    echo "el build es más nuevo que el servidor: falta un 'npm run build'"
-    return 1
+  if [ -f "$SELLO_BUILD" ]; then
+    if [ "$(stat -c %Y "/proc/$escucha")" -lt "$(stat -c %Y "$SELLO_BUILD")" ]; then
+      echo "el build es más nuevo que el servidor: falta un 'npm run build'"
+      return 1
+    fi
+  else
+    echo "  (sin sello de build en '$SELLO_BUILD': no se comprueba si está viejo)"
   fi
   return 0
 }

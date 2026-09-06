@@ -33,6 +33,6 @@ Dos cosas, y las dos están comprobadas en vivo contra el túnel de Cloudflare:
 
 ## Identidad y rotación
 
-Las sesiones firmadas duran 12 horas por defecto (máximo 24) y no tienen revocación local; deshabilitar una cuenta en OIDC no invalida inmediatamente una cookie ya emitida. Rota `SECRETDROP_SESSION_SECRET` para invalidar todas las sesiones. Guarda los secretos OIDC fuera de la imagen y restringe la lectura del fichero `.env`.
+Las sesiones firmadas duran 12 horas por defecto (máximo 24). Sí hay revocación local, pero sólo llega por aviso: si el proveedor manda un cierre de sesión por back-channel válido, esa persona queda anotada en `revocaciones.json` (25 h) y sus cookies dejan de valer. Lo que **no** hay es comprobación de permisos en cada petición: deshabilitar una cuenta en OIDC sin que llegue ese aviso no invalida una cookie ya emitida hasta que caduca. Rota `SECRETDROP_SESSION_SECRET` para invalidar todas las sesiones de golpe. Guarda los secretos OIDC fuera de la imagen y restringe la lectura del fichero `.env`.
 
 Antes de actualizar ejecuta `npm ci`, `npm run lint`, `npm run test:unit`, `npm run build` y `npm run test:http`. No despliegues si alguno falla.

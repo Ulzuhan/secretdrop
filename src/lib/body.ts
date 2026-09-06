@@ -39,3 +39,18 @@ export async function jsonBody(request: Request): Promise<any | null> {
   }
   return parsed;
 }
+
+/**
+ * Una respuesta JSON que ningún intermediario debe guardar.
+ *
+ * Faltaba: `/api/secrets/<id>` devolvía el criptograma sin ninguna cabecera de
+ * caché. Leer un secreto es una mutación destructiva —cuenta la vista y lo
+ * quema—, así que una copia guardada por el navegador o por algo de delante
+ * podría reponerse sin pasar por aquí, y el criptograma se queda además en un
+ * almacén de caché que nadie vigila.
+ */
+export function sinGuardar(cuerpo: unknown, init?: ResponseInit): Response {
+  const res = Response.json(cuerpo, init);
+  res.headers.set("Cache-Control", "no-store");
+  return res;
+}

@@ -17,6 +17,8 @@
  */
 import { createServer } from "node:http";
 import { createSign, generateKeyPairSync, randomUUID } from "node:crypto";
+import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const BASE = process.env.BASE ?? "http://127.0.0.1:3997";
 const PUERTO_IDP = Number(process.env.PUERTO_IDP ?? 9995);
@@ -96,6 +98,34 @@ const avisar = (token) =>
     body: new URLSearchParams({ logout_token: token }),
   });
 
+// Para probar el reintento hace falta que escribir la lista falle de verdad.
+// Se deja el directorio del almacén en sólo lectura y se devuelve después.
+// Si el proceso corre como root, chmod no impide escribir: entonces se omite.
+const ALMACEN = process.env.SECRETDROP_STORE_DIR;
+
+async function bloquearRevocaciones() {
+  if (!ALMACEN) return false;
+  try {
+    await mkdir(ALMACEN, { recursive: true });
+    await chmod(ALMACEN, 0o500);
+    const prueba = join(ALMACEN, `.escritura-${randomUUID()}`);
+    try {
+      await writeFile(prueba, "x");
+      await rm(prueba, { force: true });
+      await chmod(ALMACEN, 0o700);
+      return false; // se pudo escribir igual: no sirve como prueba
+    } catch {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+}
+
+async function liberarRevocaciones() {
+  if (ALMACEN) await chmod(ALMACEN, 0o700);
+}
+
 console.log("Avisos que NO se deben creer");
 check("sin token, 400", (await avisar("")).status, 400);
 check("un token que no es un JWT", (await avisar("esto-no-es-un-jwt")).status, 400);
@@ -118,6 +148,20 @@ check("sin iat, que la especificación exige",
   (await avisar(firmar({ carga: { iat: undefined } }))).status, 400);
 check("sin jti, que la especificación exige",
   (await avisar(firmar({ carga: { jti: undefined } }))).status, 400);
+
+// `exp` es igual de REQUERIDO (§2.4 y errata 1) y hasta el 06-09 se miraba SÓLO
+// si venía y era número. Un aviso sin caducidad no caduca nunca, y el
+// anti-replay que lo frenaba vive en memoria y se pierde al reiniciar.
+check("sin exp, que la especificación exige",
+  (await avisar(firmar({ carga: { exp: undefined } }))).status, 400);
+check("con exp de texto, que no es una caducidad",
+  (await avisar(firmar({ carga: { exp: "9999999999" } }))).status, 400);
+
+// Aquí la cookie no lleva `sid`, así que un aviso que sólo trae `sid` no se
+// puede atender. Antes se respondía 200 sin echar a nadie: el proveedor daba
+// por cerrada una sesión que seguía viva.
+check("sólo con sid, que aquí no se puede atender",
+  (await avisar(firmar({ carga: { sub: undefined } }))).status, 400);
 
 // El cuerpo va acotado: este endpoint es público y no autenticado por
 // definición —lo llama el proveedor—, y App Router no trae límite de tamaño.
@@ -144,6 +188,20 @@ check("un sub desconocido se acepta igualmente",
 const repetido = firmar({ carga: { sub: `nadie-${randomUUID()}` } });
 check("el mismo aviso, la primera vez", (await avisar(repetido)).status, 200);
 check("y el mismo aviso repetido, ya no", (await avisar(repetido)).status, 400);
+
+// Un aviso que NO se pudo aplicar no gasta su `jti`. Antes se apuntaba dentro
+// de la verificación, así que un 503 al escribir la lista quemaba el token: el
+// proveedor reintentaba, se le respondía «repetido», y la persona se quedaba
+// dentro. Se comprueba con la lista en sólo lectura y se restaura después.
+const sinAplicar = firmar({ carga: { sub: `nadie-${randomUUID()}` } });
+const listaBloqueada = await bloquearRevocaciones();
+if (listaBloqueada) {
+  check("si no se puede escribir la revocación, se dice 503", (await avisar(sinAplicar)).status, 503);
+  await liberarRevocaciones();
+  check("y el reintento del mismo aviso todavía sirve", (await avisar(sinAplicar)).status, 200);
+} else {
+  console.log("  · (omitido: no se pudo dejar la lista en sólo lectura)");
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    Y lo único que de verdad importa: que una sesión VIVA se cierre.

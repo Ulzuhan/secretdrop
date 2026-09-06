@@ -52,9 +52,20 @@ function yaVisto(jti: string): boolean {
   const ahora = Date.now();
   // Limpieza perezosa: sin esto el mapa crece mientras viva el proceso.
   for (const [k, caduca] of jtiVistos) if (caduca <= ahora) jtiVistos.delete(k);
-  if (jtiVistos.has(jti)) return true;
-  jtiVistos.set(jti, ahora + REPLAY_TTL_MS);
-  return false;
+  return jtiVistos.has(jti);
+}
+
+/**
+ * Apunta un `jti` ya usado. Lo llama quien ha conseguido dejar constancia de la
+ * revocación, no quien sólo ha verificado el token.
+ *
+ * Antes se apuntaba dentro de la verificación, y eso quemaba el `jti` aunque la
+ * revocación fallara al escribirse: el proveedor reintentaba, se le respondía
+ * «token inválido» por repetido, y la persona se quedaba dentro. Un reintento
+ * tiene que poder terminar el trabajo que no se pudo terminar.
+ */
+export function anotarCierreAplicado(jti: string): void {
+  jtiVistos.set(jti, Date.now() + REPLAY_TTL_MS);
 }
 
 interface Jwk {
@@ -104,6 +115,8 @@ function trozos(jwt: string): { cabecera: Record<string, unknown>; carga: Record
 export interface CierreVerificado {
   sub?: string;
   sid?: string;
+  /** Identificador del aviso, para apuntarlo cuando la revocación se ha escrito. */
+  jti: string;
 }
 
 /**
@@ -154,7 +167,17 @@ export async function verificarCierre(
   if (!destinatarios.includes(cfg.clientId)) return null;
 
   const ahora = Math.floor(Date.now() / 1000);
-  if (typeof carga.exp === "number" && carga.exp + MARGEN_S < ahora) return null;
+  // `exp` es REQUERIDO en un Logout Token (Back-Channel Logout 1.0 §2.4 y su
+  // errata 1), igual que `iat` y `jti`. Aquí se miraba SÓLO si venía y era un
+  // número: un aviso sin `exp`, o con `exp` de texto, pasaba entero. No es una
+  // escalada —firma, emisor, audiencia y evento siguen comprobándose—, pero un
+  // aviso capturado sin caducidad no caduca nunca, y el anti-replay que lo
+  // frenaba vive en memoria y se pierde al reiniciar el proceso.
+  //
+  // Authentik lo manda: `create_logout_token` pone iss, aud, iat, exp, jti y
+  // events, que es lo que se comprobó antes de exigir `iat` y `jti` el 30-08.
+  if (typeof carga.exp !== "number") return null;
+  if (carga.exp + MARGEN_S < ahora) return null;
 
   // `iat` y `jti` son REQUERIDOS en un Logout Token (OIDC Back-Channel Logout
   // 1.0 §2.4). Hasta el 30-08 aquí se miraba `iat` sólo SI venía, y `jti` no se
@@ -191,5 +214,5 @@ export async function verificarCierre(
   // verdad cuando llegara.
   if (yaVisto(jti)) return null;
 
-  return { sub, sid };
+  return { sub, sid, jti };
 }
