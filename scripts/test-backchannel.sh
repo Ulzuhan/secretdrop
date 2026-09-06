@@ -50,7 +50,7 @@ SECRETDROP_STORE_DIR="$WORK/almacen" \
   SECRETDROP_OIDC_ISSUER="$EMISOR/" \
   SECRETDROP_OIDC_REDIRECT_URI="$BASE/api/auth/callback" \
   HOSTNAME=127.0.0.1 PORT="$PORT" \
-  node .next/standalone/server.js >"$LOG" 2>&1 &
+  ${SECRETDROP_TEST_LAUNCH:-node .next/standalone/server.js} >"$LOG" 2>&1 &
 server_pid=$!
 
 for _ in $(seq 1 90); do
