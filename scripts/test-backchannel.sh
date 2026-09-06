@@ -65,7 +65,7 @@ if ! curl -sf -o /dev/null "$BASE/"; then
   exit 1
 fi
 
-node scripts/test-backchannel.mjs
+SECRETDROP_STORE_DIR="$WORK/almacen" node scripts/test-backchannel.mjs
 estado=$?
 
 # El log solo si algo falló: en verde no aporta nada y esconde el resultado.

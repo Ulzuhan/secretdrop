@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verificarCierre } from "@/lib/backchannel";
+import { anotarCierreAplicado, verificarCierre } from "@/lib/backchannel";
 import { oidcConfig } from "@/lib/oidc";
 import { revocar } from "@/lib/revocaciones";
 
@@ -90,18 +90,29 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
   if (!aviso) return NextResponse.json({ error: "invalid logout_token" }, { status: 400 });
 
-  if (aviso.sub) {
-    // La cookie de aquí lleva el `sub` del proveedor, así que la lista se
-    // lleva por él directamente: no hay nada que resolver.
-    try {
-      revocar(aviso.sub);
-    } catch {
-      // Si no se puede escribir la lista, la revocación NO ha ocurrido.
-      // Decirlo, para que el proveedor lo reintente: perderla en silencio
-      // sería dejar dentro a quien se acaba de echar.
-      return NextResponse.json({ error: "could not record revocation" }, { status: 503 });
-    }
+  // La cookie de aquí lleva el `sub` del proveedor y NO lleva `sid`: no hay
+  // ninguna sesión que buscar por sesión. Un aviso que sólo trae `sid` no se
+  // puede atender, y responder 200 sería decir que se ha echado a alguien que
+  // sigue dentro. Se dice que no en vez de fingir que sí.
+  if (!aviso.sub) {
+    return NextResponse.json(
+      { error: "unsupported logout_token: sid-only" },
+      { status: 400 }
+    );
   }
+
+  try {
+    revocar(aviso.sub);
+  } catch {
+    // Si no se puede escribir la lista, la revocación NO ha ocurrido.
+    // Decirlo, para que el proveedor lo reintente: perderla en silencio
+    // sería dejar dentro a quien se acaba de echar. Y no se apunta el `jti`,
+    // para que ese reintento no llegue como repetido.
+    return NextResponse.json({ error: "could not record revocation" }, { status: 503 });
+  }
+
+  // Ya hay constancia en disco: a partir de aquí el aviso está gastado.
+  anotarCierreAplicado(aviso.jti);
 
   return NextResponse.json({ ok: true });
 }
