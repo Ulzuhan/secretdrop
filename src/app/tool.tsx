@@ -50,6 +50,7 @@ export function Tool() {
   const [result, setResult] = useState<CreatedSecret | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyFallback, setCopyFallback] = useState<string | null>(null);
   const [secrets, setSecrets] = useState<SecretInfo[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -128,15 +129,29 @@ export function Tool() {
 
   const copyLink = async (url: string) => {
     const fullUrl = `${window.location.origin}${url}`;
-    await navigator.clipboard.writeText(fullUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      setCopied(true);
+      setCopyFallback(null);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // El portapapeles se deniega en más sitios de los que parece: Safari sin
+      // gesto reciente, un contexto no seguro, o el permiso simplemente dicho
+      // que no. Sin esto la promesa quedaba rechazada sin manejar, el botón
+      // seguía diciendo «Copy link» y —como el enlace NO se enseña en ninguna
+      // parte— la persona se quedaba sin forma de recuperar su secreto.
+      setCopyFallback(fullUrl);
+    }
   };
 
   const reset = () => {
     setResult(null);
     setError(null);
-    if (textareaRef.current) textareaRef.current.value = "";
+    setCopyFallback(null);
+    // El textarea es controlado: escribirle `.value` por debajo no cambia el
+    // estado y React lo pisa en el siguiente render. Lo que vacía la caja es
+    // esto.
+    setSecret("");
   };
 
   return (
@@ -280,6 +295,21 @@ export function Tool() {
                 New secret
               </button>
             </div>
+
+            {copyFallback && (
+              <div className="text-left space-y-2">
+                <p className="text-danger text-sm">
+                  Couldn&apos;t copy automatically. Select the link and copy it:
+                </p>
+                <input
+                  readOnly
+                  value={copyFallback}
+                  aria-label="Secret link"
+                  onFocus={(event) => event.currentTarget.select()}
+                  className="w-full rounded-xl border border-border bg-surface-light px-3 py-2 font-mono text-xs text-foreground"
+                />
+              </div>
+            )}
 
             <div className="bg-surface-light rounded-xl p-3 font-mono text-sm text-accent break-all select-all">
               {typeof window !== "undefined"

@@ -68,6 +68,11 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
+          # `Dockerfile` es el de Go desde 0.8.0; el de Node vive en
+          # `Dockerfile.node` y ya NO se publica: Node se conserva como
+          # herramienta de compilación y pruebas, no en el runtime. La imagen
+          # Go pesa 25 MB en vez de 216 y ocupa 2,3 MiB en reposo en vez de
+          # 39,5, con las mismas restricciones productivas.
           # Solo amd64. Construir arm64 aquí significa hacerlo bajo QEMU, y un
           # build de Next.js emulado tarda horas en vez de minutos: las
           # ejecuciones anteriores parecían rápidas solo porque la caché de

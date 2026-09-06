@@ -32,7 +32,7 @@ const check = (que, real, esperado) => {
  * siempre. Con la interfaz montada en cliente el hueco no existe. Se reintenta
  * hasta que el botón se habilita, que es la señal de que React ya está.
  */
-async function crearSecreto(pagina, texto) {
+async function componerSecreto(pagina, texto) {
   const caja = pagina.locator("textarea");
   const boton = pagina.getByRole("button", { name: /create encrypted link/i });
   await caja.waitFor({ timeout: 15_000 });
@@ -43,6 +43,10 @@ async function crearSecreto(pagina, texto) {
   }
   await boton.click();
   await pagina.waitForSelector("text=/ready to share/i", { timeout: 15_000 });
+}
+
+async function crearSecreto(pagina, texto) {
+  await componerSecreto(pagina, texto);
   await pagina.getByRole("button", { name: /copy/i }).first().click();
   return pagina.evaluate(() => navigator.clipboard.readText());
 }
@@ -175,6 +179,33 @@ try {
   console.log("\nCrear y compartir");
   const enlace = await crearSecreto(pagina, TEXTO_CLARO);
   check("el enlace copiado apunta al visor", /\/v\/[A-Za-z0-9_-]{12}#.+/.test(enlace), true);
+
+  // Si el portapapeles dice que no —Safari sin gesto, contexto no seguro,
+  // permiso denegado—, el enlace NO se enseña en ninguna otra parte: sin
+  // recambio, la persona se queda sin su secreto. Se rompe a propósito.
+  const sesionGuardada = await contexto.storageState();
+  const sinPortapapeles = await navegador.newContext({ ignoreHTTPSErrors: true, storageState: sesionGuardada });
+  await sinPortapapeles.addInitScript(() => {
+    // Sólo `writeText`: romper también la lectura dejaría la prueba sin forma
+    // de comprobar nada, y lo que se deniega en la vida real es escribir.
+    const original = navigator.clipboard;
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        readText: () => original.readText(),
+        writeText: () => Promise.reject(new Error("denegado")),
+      },
+    });
+  });
+  const otra = await sinPortapapeles.newPage();
+  await otra.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await componerSecreto(otra, `sin-portapapeles-${randomUUID()}`);
+  await otra.getByRole("button", { name: /copy link/i }).click();
+  const recambio = otra.getByLabel("Secret link");
+  await recambio.waitFor({ timeout: 10_000 }).catch(() => {});
+  check("si copiar falla, el enlace se puede coger a mano",
+    /\/v\/[A-Za-z0-9_-]{12}#.+/.test(await recambio.inputValue().catch(() => "")), true);
+  await sinPortapapeles.close();
 
   const clave = enlace.split("#")[1];
   console.log("\nLo que NO salió del navegador");

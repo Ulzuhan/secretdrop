@@ -107,7 +107,7 @@ jobs:
       # etapa de assets, vite emite el CSS fuente sin una sola utilidad
       # generada: el build pasa, el asset se sirve con su MIME y con tamaño
       # parecido, y la página sale sin estilos. Sólo se ve renderizando.
-      - run: docker build -f Dockerfile.go -t secretdrop-go:ci .
+      - run: docker build -t secretdrop-go:ci .
 
       - name: El navegador, contra la imagen Go
         env:
