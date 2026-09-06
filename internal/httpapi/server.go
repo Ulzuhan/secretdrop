@@ -4,9 +4,11 @@
 package httpapi
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"html/template"
 	"io"
@@ -96,6 +98,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", s.salud)
 	mux.HandleFunc("GET /v/{id}", s.visor)
 	mux.HandleFunc("GET /robots.txt", s.robots)
+	mux.HandleFunc("GET /sitemap.xml", s.sitemap)
 	// El logo del pie y la imagen de OpenGraph. Next los servía desde `public/`;
 	// aquí van embebidos, y sin estas rutas daban 404 sin que fallara nada más
 	// que el aspecto de la página y la vista previa de los enlaces.
@@ -214,9 +217,48 @@ func (s *Server) visor(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// robots y sitemap salen byte a byte como los de Next, incluida la línea en
+// blanco y el `Cache-Control`. No es purismo: son ficheros que lee un rastreador
+// externo, y el día del cambio de implementación no puede variar lo que ve.
+//
+// Lo que había aquí no coincidía: decía `Allow: /$` en vez de `Allow: /`, no
+// prohibía `/api/` y, con host público, le faltaban las líneas `Host` y
+// `Sitemap` — así que el sitemap quedaba sin anunciar. Y `/sitemap.xml` no
+// existía: daba 404.
+//
+// `/v/` se prohíbe porque el identificador de esas URL ES la credencial y
+// abrirlas consume el secreto.
 func (s *Server) robots(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	_, _ = io.WriteString(w, "User-agent: *\nAllow: /$\nDisallow: /v/\n")
+	cuerpo := "User-Agent: *\nAllow: /\nDisallow: /v/\nDisallow: /api/\n\n"
+	if base := s.canonica("/"); base != "" {
+		origen := strings.TrimSuffix(base, "/")
+		cuerpo += "Host: " + origen + "\nSitemap: " + origen + "/sitemap.xml\n"
+	}
+	s.texto(w, "text/plain", cuerpo)
+}
+
+// sitemap: sólo la portada. Todo lo demás es o un secreto —cuya URL es su
+// propia credencial— o una ruta de API. Sin host público no hay origen absoluto
+// que escribir, así que sale vacío en vez de salir mal.
+func (s *Server) sitemap(w http.ResponseWriter, r *http.Request) {
+	cuerpo := "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+		"<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+	if base := s.canonica("/"); base != "" {
+		// El host viene del entorno y acaba dentro de un documento XML: se
+		// escapa, que es lo que hace Next, y no se concatena a pelo.
+		var loc bytes.Buffer
+		_ = xml.EscapeText(&loc, []byte(base))
+		cuerpo += "<url>\n<loc>" + loc.String() + "</loc>\n" +
+			"<changefreq>monthly</changefreq>\n<priority>1</priority>\n</url>\n"
+	}
+	s.texto(w, "application/xml", cuerpo+"</urlset>\n")
+}
+
+func (s *Server) texto(w http.ResponseWriter, tipo, cuerpo string) {
+	h := w.Header()
+	h.Set("Content-Type", tipo)
+	h.Set("Cache-Control", "public, max-age=0, must-revalidate")
+	_, _ = io.WriteString(w, cuerpo)
 }
 
 func (s *Server) canonica(ruta string) string {

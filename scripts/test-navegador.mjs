@@ -151,6 +151,14 @@ try {
   const imagen = await pagina.request.get(og ?? `${BASE}/og.jpg`);
   check("    que además se sirve", imagen.status(), 200);
 
+  // La variante CON host público: aquí sí está configurado, y es la que anuncia
+  // el sitemap. Sin estas líneas el mapa existe y no se entera nadie.
+  const robots = await (await pagina.request.get(`${BASE}/robots.txt`)).text();
+  check("  robots anuncia el sitemap",
+    robots.endsWith(`Host: ${BASE}\nSitemap: ${BASE}/sitemap.xml\n`), true);
+  const mapa = await (await pagina.request.get(`${BASE}/sitemap.xml`)).text();
+  check("  y el sitemap lista la portada", mapa.includes(`<loc>${BASE}/</loc>`), true);
+
   console.log("\nEntrar de verdad, pasando por el proveedor");
   await pagina.goto(`${BASE}/api/auth/login?next=%2F`, { waitUntil: "networkidle" });
   check("vuelve a la aplicación", new URL(pagina.url()).pathname, "/");
