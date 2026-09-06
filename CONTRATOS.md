@@ -180,7 +180,7 @@ para el navegador no hay entorno: vite sustituye `process.env` por `{}`, así qu
 la bandera quedaba siempre apagada y los enlaces al resto de servicios
 desaparecían **sin que fallara nada**. La variable está puesta en producción.
 El componente viene GENERADO del repo del tema y se comparte con los otros
-cinco servicios, así que no se le toca la lógica: la decisión la toma ahora el
+seis servicios, así que no se le toca la lógica: la decisión la toma ahora el
 servidor y baja como `data-footer-links`, y `define` apunta ahí la expresión.
 Es el único hallazgo de esta tanda que no da la cara solo, y por eso tiene
 comprobación propia en la suite.

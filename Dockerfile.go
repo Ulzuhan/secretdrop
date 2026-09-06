@@ -37,7 +37,9 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/secretdrop ./cmd/s
 
 FROM alpine:3.24 AS runtime
 ENV HOSTNAME=0.0.0.0 PORT=3461 SECRETDROP_STORE_DIR=/data
-# uid fijo y alto a propósito: es la política de las cinco imágenes (10001), no
+# uid fijo y alto a propósito: es la política de las siete imágenes propias
+# (10001) — DocDrop, SecretDrop, QR-Forge, TabUp, PixelForge, LinkUp y
+# SignDrop—, no
 # choca con usuarios del sistema del host, y los bind mounts saben a quién
 # pertenecer. Sin `-u`, alpine asigna 100 — que en muchos hosts es un usuario
 # del sistema de verdad.

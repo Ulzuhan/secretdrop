@@ -8,7 +8,9 @@ RUN npm run build
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3461 SECRETDROP_STORE_DIR=/data
 WORKDIR /app
-# uid fijo y alto a propósito: es la política de las cinco imágenes (10001), no
+# uid fijo y alto a propósito: es la política de las siete imágenes propias
+# (10001) — DocDrop, SecretDrop, QR-Forge, TabUp, PixelForge, LinkUp y
+# SignDrop—, no
 # choca con usuarios del sistema del host, y los bind mounts saben a quién
 # pertenecer. Sin `-u`, alpine asigna 100 — que en muchos hosts es un usuario
 # del sistema de verdad.
@@ -25,7 +27,7 @@ COPY --from=build --chown=secretdrop:secretdrop /app/public ./public
 USER secretdrop
 EXPOSE 3461
 
-# El healthcheck que faltaba: era la única de las cinco imágenes sin él, y el
+# El healthcheck que faltaba: era la única de las imágenes propias sin él, y el
 # compose lo compensaba con el smoke de `deploy.sh` — que mira el dominio, no el
 # contenedor, y por tanto no distingue «arrancando» de «arrancado». Sin esto,
 # `deploy.sh` daba por bueno un contenedor que todavía no servía.
