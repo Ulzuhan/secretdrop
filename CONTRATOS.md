@@ -108,6 +108,7 @@ El backend Go pasa hoy, con las mismas suites y sin tocarlas:
 | `interfaz` | 31 | 31 |
 | `backchannel` | ✓ | ✓ |
 | reinicio en frío y tras rearranque | ✓ | ✓ |
+| `navegador` | 21 | 21 |
 
 Más las suyas propias en Go: carreras del almacén —treinta lectores contra un
 secreto de un solo uso, veinte vueltas—, persistencia antes de entregar,
@@ -116,11 +117,34 @@ recodificada y su lista de revocación.
 
 CI corre las dos, así que una divergencia se ve el día que aparece.
 
-**Lo que todavía sirve Node y no Go: la pantalla.** Go ya sirve la capa de
-alrededor —cabeceras, CSP con nonce por respuesta, el visor, `robots.txt` y los
-404 de verdad— y eso está congelado en la suite `interfaz`. Lo que falta es
-React: crear, compartir y descifrar en el navegador. Se separó a propósito,
-porque esa mitad se demuestra con un navegador y ésta no.
+**La pantalla ya es de las dos.** Go sirve la capa de alrededor —cabeceras, CSP
+con nonce por respuesta, el visor, `robots.txt` y los 404 de verdad—, congelada
+en la suite `interfaz`, y ahora también React: los mismos componentes,
+compilados con vite y embebidos en el binario con `go:embed`.
+
+La otra mitad se demuestra con un navegador de verdad, y ésa es la suite
+`navegador`: Chromium sobre HTTPS con certificado propio, contra el proveedor
+sintético que firma. Entra, crea, comparte, abre el enlace en **otro contexto
+de navegador sin cookies**, descifra, comprueba que sólo se entrega una vez,
+que un enlace sin la clave del fragmento no lo gasta, y sale. Vigila además que
+la cookie de sesión sea `Secure`, `HttpOnly` y `SameSite=Lax`, que la CSP lleve
+su nonce, y —leyendo todas las peticiones que salen— que ni el texto claro ni
+la clave lleguen nunca al servidor.
+
+No sabe contra qué implementación corre: se apunta con `SECRETDROP_TEST_LAUNCH`
+igual que las demás. Playwright es dependencia de desarrollo con versión fija y
+**no entra en ninguna imagen**; el navegador se instala sólo en CI.
+
+**El pie es un componente de servidor, y eso no sobrevive al port.** Lee
+`KAICORP_FOOTER_LINKS` él mismo, y en Next lo renderiza el servidor. Compilado
+para el navegador no hay entorno: vite sustituye `process.env` por `{}`, así que
+la bandera quedaba siempre apagada y los enlaces al resto de servicios
+desaparecían **sin que fallara nada**. La variable está puesta en producción.
+El componente viene GENERADO del repo del tema y se comparte con los otros
+cinco servicios, así que no se le toca la lógica: la decisión la toma ahora el
+servidor y baja como `data-footer-links`, y `define` apunta ahí la expresión.
+Es el único hallazgo de esta tanda que no da la cara solo, y por eso tiene
+comprobación propia en la suite.
 
 **Abrir un enlace no puede gastar el secreto.** `/v/<id>` no lee ni toca el
 almacén: el consumo es la petición explícita del visor a `/api/secrets/<id>`, y
@@ -129,7 +153,7 @@ y comprueba que la primera lectura sigue siendo la primera. Es la comprobación
 que más importa de todas: el día que se rompa, nadie lo verá hasta que alguien
 pierda un secreto porque un previsualizador de mensajería abrió su enlace.
 
-Y dos cosas que el port dejó escritas porque se descubrieron rompiéndose:
+Y tres cosas que el port dejó escritas porque se descubrieron rompiéndose:
 
 - La cookie del estado OIDC va **URL-encoded**, como la deja Next. Su valor es
   JSON, y `{`, `"` y `,` no son bytes válidos de cookie: `http.SetCookie` los
