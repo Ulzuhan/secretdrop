@@ -105,11 +105,11 @@ El backend Go pasa hoy, con las mismas suites y sin tocarlas:
 | `auth` | 34 | 34 |
 | `secretos` | 53 | 53 |
 | `contratos` | 23 | 23 |
-| `interfaz` | 31 | 31 |
+| `interfaz` | 37 | 37 |
 | `backchannel` | ✓ | ✓ |
 | reinicio en frío y tras rearranque | ✓ | ✓ |
-| `navegador` | 26 | 26 |
-| `navegador`, contra la **imagen** | — | 26 |
+| `navegador` | 28 | 28 |
+| `navegador`, contra la **imagen** | — | 28 |
 
 Más las suyas propias en Go: carreras del almacén —treinta lectores contra un
 secreto de un solo uso, veinte vueltas—, persistencia antes de entregar,
@@ -133,6 +133,14 @@ que la CSP lleve su nonce, y —leyendo todas las peticiones que salen— que ni
 texto claro ni la clave lleguen nunca al servidor. Y que la página tenga
 aspecto: estilos aplicados de verdad, el logo cargado y la tarjeta de enlace
 con su imagen.
+
+**Lo que lee un rastreador va byte a byte.** `robots.txt` y `/sitemap.xml` los
+lee alguien de fuera, así que el día del cambio de implementación no puede
+variar lo que ve: se comparan cuerpos exactos, no «contiene». El port tenía los
+suyos —decía `Allow: /$`, no prohibía `/api/`, le faltaban las líneas `Host` y
+`Sitemap`, y el mapa daba 404— y ninguna prueba los miraba. La variante sin host
+público la fija la suite `interfaz`; la variante con host, la de navegador, que
+es la que configura uno.
 
 No sabe contra qué implementación corre: se apunta con `SECRETDROP_TEST_LAUNCH`
 igual que las demás. Playwright es dependencia de desarrollo con versión fija y
