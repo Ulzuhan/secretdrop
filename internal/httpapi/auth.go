@@ -14,9 +14,18 @@ import (
 
 const cookieOidc = "secretdrop_oidc"
 
-// produccion decide el atributo Secure. Se mira igual que en Node para que una
-// suite en http no se quede sin cookie.
-func produccion() bool { return os.Getenv("NODE_ENV") == "production" }
+// cookieSegura decide el atributo `Secure`, y lo hace al revés que Node **a
+// propósito**.
+//
+// Node lo ata a `NODE_ENV === "production"`, que su imagen trae puesto de
+// fábrica. Un binario Go no lo trae, y el compose de la casa tampoco lo pasa:
+// copiar esa condición habría emitido cookies SIN `Secure` en producción el día
+// del despliegue, sin que fallara ninguna prueba. Un fallo así no avisa.
+//
+// Así que aquí van seguras salvo que alguien lo desactive a mano, que es lo que
+// necesita quien sirva esto por http en local. Equivocarse por el lado de
+// exigir https es el lado bueno.
+func cookieSegura() bool { return os.Getenv("SECRETDROP_INSECURE_COOKIES") != "1" }
 
 type estadoOidc struct {
 	Verifier string `json:"verifier"`
@@ -27,14 +36,14 @@ type estadoOidc struct {
 func (s *Server) ponerCookie(w http.ResponseWriter, nombre, valor string, maxAge int) {
 	http.SetCookie(w, &http.Cookie{
 		Name: nombre, Value: valor, Path: "/", HttpOnly: true,
-		Secure: produccion(), SameSite: http.SameSiteLaxMode, MaxAge: maxAge,
+		Secure: cookieSegura(), SameSite: http.SameSiteLaxMode, MaxAge: maxAge,
 	})
 }
 
 func (s *Server) borrarCookie(w http.ResponseWriter, nombre string) {
 	http.SetCookie(w, &http.Cookie{
 		Name: nombre, Value: "", Path: "/", HttpOnly: true,
-		Secure: produccion(), SameSite: http.SameSiteLaxMode, MaxAge: -1,
+		Secure: cookieSegura(), SameSite: http.SameSiteLaxMode, MaxAge: -1,
 	})
 }
 

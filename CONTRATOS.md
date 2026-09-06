@@ -135,6 +135,12 @@ Y dos cosas que el port dejó escritas porque se descubrieron rompiéndose:
   JSON, y `{`, `"` y `,` no son bytes válidos de cookie: `http.SetCookie` los
   borra en silencio y lo que vuelve ya no es JSON. Además así una cookie emitida
   por Node durante una migración se sigue leyendo.
+- Las cookies llevan `Secure` **por defecto**, al revés que Node. Node lo ata a
+  `NODE_ENV === "production"`, que su imagen trae de fábrica; un binario Go no,
+  y el compose de la casa tampoco lo pasa. Copiar esa condición habría emitido
+  cookies sin `Secure` en producción el día del despliegue sin que fallara
+  ninguna prueba. Se desactiva a mano con `SECRETDROP_INSECURE_COOKIES=1` para
+  servir por http en local.
 - El POST de creación exige `application/json`. No es formalismo: es lo que
   obliga al navegador a preguntar antes de mandar la cookie desde otro sitio del
   mismo dominio.
