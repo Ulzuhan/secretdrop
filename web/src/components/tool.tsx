@@ -1,7 +1,6 @@
-"use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { generateKey, encryptSecret } from "@/lib/crypto";
+import { generateKey, encryptSecret } from "../lib/crypto";
 
 function formatExpiry(timestamp: number): string {
   const diff = timestamp - Date.now();

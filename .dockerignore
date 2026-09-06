@@ -5,3 +5,7 @@ node_modules
 .env
 .env.local
 npm-debug.log*
+web/node_modules
+# Los assets se compilan dentro de la imagen; un `vite build` local no debe
+# colarse en ella ni decidir qué interfaz se embebe.
+internal/web/dist

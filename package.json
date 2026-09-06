@@ -1,6 +1,6 @@
 {
   "name": "secretdrop",
-  "version": "0.7.3",
+  "version": "0.8.0",
   "description": "One-time secret sharing, encrypted in the browser: the key travels in the URL fragment and the server only ever sees ciphertext.",
   "license": "MIT",
   "author": "Ulzuhan",
@@ -29,7 +29,10 @@
     "test:http": "./scripts/run-suites.sh",
     "postbuild": "node scripts/prepare-standalone.mjs",
     "test:backchannel": "bash scripts/test-backchannel.sh",
-    "test:reinicio": "bash scripts/test-reinicio.sh"
+    "test:reinicio": "bash scripts/test-reinicio.sh",
+    "test:navegador": "bash scripts/test-navegador.sh",
+    "build:web": "vite build",
+    "test:compatibilidad": "bash scripts/test-compatibilidad.sh"
   },
   "dependencies": {
     "next": "^16.2.12",
@@ -37,14 +40,17 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "6.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "8.2.2",
     "vitest": "^4.1.11"
   },
   "overrides": {

@@ -33,6 +33,27 @@ check("  el criptograma no viaja en el HTML del visor",
 console.log("\nEl documento del visor no se indexa");
 check("lleva noindex", /name=["']robots["'][^>]*noindex/i.test(visor.cuerpo), true);
 
+console.log("\nLo que lee un rastreador");
+// Byte a byte, y no «contiene»: son ficheros que lee alguien de fuera, y el día
+// del cambio de implementación no puede variar lo que ve. El port los tenía
+// distintos —decía `Allow: /$`, no prohibía `/api/` y no había sitemap ninguno—
+// y ninguna prueba lo miraba.
+// Aquí no hay host público configurado; la variante con host la cubre la suite
+// de navegador, que sí lo pone.
+const robots = await cabeceras("/robots.txt");
+check("robots.txt responde", robots.status, 200);
+check("  como texto", (robots.h.get("content-type") || "").startsWith("text/plain"), true);
+check("  y dice exactamente lo mismo en las dos",
+  robots.cuerpo, "User-Agent: *\nAllow: /\nDisallow: /v/\nDisallow: /api/\n\n");
+
+const mapa = await cabeceras("/sitemap.xml");
+check("sitemap.xml responde", mapa.status, 200);
+check("  como XML", (mapa.h.get("content-type") || "").startsWith("application/xml"), true);
+// Sin origen absoluto sale vacío, que es distinto de salir mal.
+check("  y sin host público viene vacío",
+  mapa.cuerpo,
+  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>\n');
+
 console.log("\nCabeceras de seguridad");
 for (const [ruta, nombre] of [["/", "la portada"], [`/v/${id}`, "el visor"]]) {
   const r = await cabeceras(ruta);
