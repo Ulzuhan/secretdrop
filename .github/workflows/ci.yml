@@ -61,7 +61,12 @@ jobs:
         env:
           SECRETDROP_TEST_LAUNCH: ./secretdrop
           SECRETDROP_TEST_BUILD_STAMP: ./secretdrop
-        run: ./scripts/run-suites.sh secretos contratos
+        run: ./scripts/run-suites.sh
+
+      - name: El aviso de cierre de sesión, contra el binario Go
+        env:
+          SECRETDROP_TEST_LAUNCH: ./secretdrop
+        run: npm run test:backchannel
 
       - name: El listado en frío y tras reiniciar, contra el binario Go
         env:

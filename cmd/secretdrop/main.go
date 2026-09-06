@@ -64,7 +64,15 @@ func main() {
 		log.Fatalf("no se pudo leer el almacén: %v", err)
 	}
 
-	servidor := httpapi.New(almacen, auth.NewVerifier(secreto, ttl, dir), os.Getenv("SECRETDROP_PUBLIC_HOST"))
+	verificador := auth.NewVerifier(secreto, ttl, dir)
+	// Sin configuración de identidad la aplicación arranca igual: leer un
+	// secreto por su enlace nunca ha pedido cuenta. Lo que no habrá es entrada.
+	oidc := auth.OidcFromEnv()
+	if oidc == nil {
+		log.Print("aviso: sin configuración OIDC; no se podrá iniciar sesión")
+	}
+	servidor := httpapi.New(almacen, verificador, oidc, auth.NewDiscovery(),
+		os.Getenv("SECRETDROP_PUBLIC_HOST"))
 
 	host := os.Getenv("HOSTNAME")
 	if host == "" {

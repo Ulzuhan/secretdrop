@@ -6,9 +6,11 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"html/template"
 	"io"
 	"math"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -25,15 +27,25 @@ const (
 )
 
 type Server struct {
-	store      *store.Store
-	verifier   *auth.Verifier
-	limiter    *limiter
-	publicHost string
-	now        func() time.Time
+	store       *store.Store
+	verifier    *auth.Verifier
+	discovery   *auth.Discovery
+	oidc        *auth.OidcConfig
+	backchannel *auth.Backchannel
+	limiter     *limiter
+	publicHost  string
+	now         func() time.Time
 }
 
-func New(s *store.Store, v *auth.Verifier, publicHost string) *Server {
-	return &Server{store: s, verifier: v, limiter: newLimiter(), publicHost: publicHost, now: time.Now}
+func New(s *store.Store, v *auth.Verifier, oidc *auth.OidcConfig, d *auth.Discovery, publicHost string) *Server {
+	srv := &Server{store: s, verifier: v, oidc: oidc, discovery: d,
+		limiter: newLimiter(), publicHost: publicHost, now: time.Now}
+	// Sin configuración de identidad no hay forma de entrar, y tampoco aviso de
+	// cierre que atender: la ruta responde 404 en vez de fingir que existe.
+	if oidc != nil {
+		srv.backchannel = auth.NewBackchannel(oidc, d, v)
+	}
+	return srv
 }
 
 func escribirJSON(w http.ResponseWriter, estado int, cuerpo any) {
@@ -67,6 +79,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/secrets", s.crear)
 	mux.HandleFunc("GET /api/secrets/{id}", s.consumir)
 	mux.HandleFunc("POST /api/cleanup", s.limpiar)
+	mux.HandleFunc("GET /api/auth/login", s.login)
+	mux.HandleFunc("GET /api/auth/callback", s.callback)
+	mux.HandleFunc("POST /api/auth/logout", s.logout)
+	mux.HandleFunc("POST /api/auth/backchannel-logout", s.backchannelLogout)
 	mux.HandleFunc("GET /api/health", s.salud)
 	mux.HandleFunc("GET /", s.portada)
 	return mux
@@ -82,6 +98,11 @@ func (s *Server) salud(w http.ResponseWriter, r *http.Request) {
 // pantalla de React llega en la siguiente entrega; lo que importa ahora es que
 // una ruta desconocida NO devuelva 200 con HTML, que es como una SPA mal
 // servida esconde un 404 de API.
+//
+// El enlace de alta sale del ENTORNO y de ninguna constante. Estuvo escrito a
+// fuego apuntando al proveedor de quien escribió esto, en un repositorio con
+// licencia MIT: cualquiera que lo desplegara le ponía a sus visitantes un botón
+// de alta hacia el Authentik de un desconocido. Sin variable no hay botón.
 func (s *Server) portada(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		escribirJSON(w, http.StatusNotFound, map[string]any{"error": "Not found"})
@@ -91,8 +112,25 @@ func (s *Server) portada(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = io.WriteString(w, "<!doctype html><meta charset=utf-8><title>SecretDrop</title>")
+	if err := plantillaPortada.Execute(w, map[string]any{
+		"Alta":   os.Getenv("SECRETDROP_ENROLL_URL"),
+		"Cuenta": os.Getenv("SECRETDROP_ACCOUNT_URL"),
+	}); err != nil {
+		return
+	}
 }
+
+// html/template y no concatenación: escapa por contexto, así que una variable
+// de entorno rara no puede salirse del atributo y convertirse en marcado.
+var plantillaPortada = template.Must(template.New("portada").Parse(
+	`<!doctype html><html lang=en><meta charset=utf-8>
+<title>SecretDrop</title>
+<main>
+<h1>SecretDrop</h1>
+{{if .Alta}}<a href="{{.Alta}}">Request an account</a>{{end}}
+{{if .Cuenta}}<a href="{{.Cuenta}}">Your account</a>{{end}}
+</main>
+`))
 
 func (s *Server) listar(w http.ResponseWriter, r *http.Request) {
 	cuenta := s.exigirCuenta(w, r)

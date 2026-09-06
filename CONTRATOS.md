@@ -102,8 +102,10 @@ El backend Go pasa hoy, con las mismas suites y sin tocarlas:
 
 | | contra Node | contra Go |
 |---|---|---|
+| `auth` | 34 | 34 |
 | `secretos` | 53 | 53 |
 | `contratos` | 23 | 23 |
+| `backchannel` | ✓ | ✓ |
 | reinicio en frío y tras rearranque | ✓ | ✓ |
 
 Más las suyas propias en Go: carreras del almacén —treinta lectores contra un
@@ -113,10 +115,20 @@ recodificada y su lista de revocación.
 
 CI corre las dos, así que una divergencia se ve el día que aparece.
 
-**Lo que todavía sirve Node y no Go:** el inicio de sesión OIDC
-(`/api/auth/login`, `callback`, `logout`), el aviso de cierre por back-channel y
-toda la interfaz. Por eso las suites `auth` y `backchannel` sólo corren contra
-Node. Es la siguiente entrega, no un olvido.
+**Lo que todavía sirve Node y no Go: la interfaz.** La portada de Go es un marco
+mínimo —con el enlace de alta salido del entorno, que eso sí es contrato— y no
+la pantalla de React. Crear, compartir y descifrar en el navegador es la
+siguiente entrega.
+
+Y dos cosas que el port dejó escritas porque se descubrieron rompiéndose:
+
+- La cookie del estado OIDC va **URL-encoded**, como la deja Next. Su valor es
+  JSON, y `{`, `"` y `,` no son bytes válidos de cookie: `http.SetCookie` los
+  borra en silencio y lo que vuelve ya no es JSON. Además así una cookie emitida
+  por Node durante una migración se sigue leyendo.
+- El POST de creación exige `application/json`. No es formalismo: es lo que
+  obliga al navegador a preguntar antes de mandar la cookie desde otro sitio del
+  mismo dominio.
 
 ## Lo que esta entrega no hace
 
