@@ -20,9 +20,27 @@ limpiar() { docker rm -f "$NOMBRE" >/dev/null 2>&1 || true; }
 trap limpiar EXIT INT TERM
 
 # Las variables se pasan por nombre: el valor lo pone quien llama, igual que al
-# binario. SECRETDROP_STORE_DIR se ignora a propósito —apunta a una ruta del
-# anfitrión que aquí dentro no existe— y se usa /data, que es de la propia
-# imagen y pertenece a su usuario.
+# binario.
+#
+# El almacén tiene dos modos. Por omisión se usa /data, el de la propia imagen.
+# Pero si quien llama pasa SECRETDROP_STORE_DIR apuntando a un directorio que
+# existe en el anfitrión, se monta ahí dentro con la misma ruta: es lo que
+# necesita la suite de compatibilidad, que hace que dos implementaciones se
+# turnen SOBRE EL MISMO almacén.
+#
+# En ese modo el contenedor corre con el uid de quien lanza, y no con el 10001
+# de la imagen, para que los ficheros que escriba los pueda leer y escribir
+# después el binario de fuera. Es una prueba del FORMATO de los datos; el perfil
+# de seguridad de producción —uid 10001, read_only, cap_drop— se verifica
+# aparte, y no aquí.
+MONTAJE=()
+if [ -n "${SECRETDROP_STORE_DIR:-}" ] && [ -d "${SECRETDROP_STORE_DIR}" ]; then
+  MONTAJE=(-v "${SECRETDROP_STORE_DIR}:${SECRETDROP_STORE_DIR}"
+           -e "SECRETDROP_STORE_DIR=${SECRETDROP_STORE_DIR}"
+           --user "$(id -u):$(id -g)")
+else
+  MONTAJE=(-e SECRETDROP_STORE_DIR=/data)
+fi
 # Sin `exec`: reemplazaría a esta shell y el trap de arriba no llegaría a
 # correr nunca. Se comprobó dejando un contenedor sujetando el puerto.
 docker run --rm --network host --name "$NOMBRE" \
@@ -39,6 +57,8 @@ docker run --rm --network host --name "$NOMBRE" \
   -e SECRETDROP_ACCOUNT_URL \
   -e SECRETDROP_INSECURE_COOKIES \
   -e SECRETDROP_MAX_STORE_BYTES \
-  -e SECRETDROP_STORE_DIR=/data \
+  -e SECRETDROP_MAX_ACTIVE_SECRETS \
+  -e NODE_ENV \
+  "${MONTAJE[@]}" \
   "$IMAGEN" &
 wait $!

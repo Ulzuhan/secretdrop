@@ -225,6 +225,21 @@ Node se respeta. Go escribe lo suyo y revoca otra cuenta. Node vuelve y **nada
 de lo gastado resucita**: ni un secreto ni un permiso, los escribiera quien los
 escribiera.
 
+**Y se ejecuta contra la imagen exacta a la que se volvería**, no contra el
+Node de la rama, que tiene arreglos que esa imagen no lleva:
+
+```bash
+SECRETDROP_COMPAT_NODE="bash scripts/lanzar-imagen.sh" \
+SECRETDROP_TEST_IMAGE="ghcr.io/ulzuhan/secretdrop:0.7.3@sha256:4103ac55…" \
+SECRETDROP_COMPAT_GO=./secretdrop npm run test:compatibilidad
+```
+
+En ese modo el lanzador monta el almacén del anfitrión dentro del contenedor
+—es lo que permite que las dos se turnen sobre el MISMO directorio— y corre con
+el uid de quien lanza, para que los ficheros los pueda leer después el binario
+de fuera. Es una prueba del formato de los datos; el perfil de seguridad de
+producción se verifica aparte.
+
 Eso es lo que hace segura la vuelta atrás. Un rollback que resucitara secretos
 ya entregados sería peor que no poder volver.
 
