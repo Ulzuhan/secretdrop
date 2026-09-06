@@ -108,7 +108,8 @@ El backend Go pasa hoy, con las mismas suites y sin tocarlas:
 | `interfaz` | 31 | 31 |
 | `backchannel` | ✓ | ✓ |
 | reinicio en frío y tras rearranque | ✓ | ✓ |
-| `navegador` | 21 | 21 |
+| `navegador` | 26 | 26 |
+| `navegador`, contra la **imagen** | — | 26 |
 
 Más las suyas propias en Go: carreras del almacén —treinta lectores contra un
 secreto de un solo uso, veinte vueltas—, persistencia antes de entregar,
@@ -126,14 +127,44 @@ La otra mitad se demuestra con un navegador de verdad, y ésa es la suite
 `navegador`: Chromium sobre HTTPS con certificado propio, contra el proveedor
 sintético que firma. Entra, crea, comparte, abre el enlace en **otro contexto
 de navegador sin cookies**, descifra, comprueba que sólo se entrega una vez,
-que un enlace sin la clave del fragmento no lo gasta, y sale. Vigila además que
-la cookie de sesión sea `Secure`, `HttpOnly` y `SameSite=Lax`, que la CSP lleve
-su nonce, y —leyendo todas las peticiones que salen— que ni el texto claro ni
-la clave lleguen nunca al servidor.
+que un enlace sin la clave del fragmento no lo gasta, y sale **por su botón**.
+Vigila además que la cookie de sesión sea `Secure`, `HttpOnly` y `SameSite=Lax`,
+que la CSP lleve su nonce, y —leyendo todas las peticiones que salen— que ni el
+texto claro ni la clave lleguen nunca al servidor. Y que la página tenga
+aspecto: estilos aplicados de verdad, el logo cargado y la tarjeta de enlace
+con su imagen.
 
 No sabe contra qué implementación corre: se apunta con `SECRETDROP_TEST_LAUNCH`
 igual que las demás. Playwright es dependencia de desarrollo con versión fija y
 **no entra en ninguna imagen**; el navegador se instala sólo en CI.
+
+**Y hay que correrla contra la imagen, no sólo contra el binario.**
+`scripts/lanzar-imagen.sh` la arranca como si fuera un binario más para poder
+apuntarle el mismo recorrido sin tocarlo. No es una precaución teórica: la
+primera imagen se construía sin `postcss.config.mjs`, así que vite emitía el
+CSS fuente **sin una sola utilidad de Tailwind generada** y la página salía sin
+estilos. El build no fallaba, el asset se servía con su MIME correcto y pesaba
+parecido —34 KB contra 41 KB—, y ninguna prueba contra el binario podía verlo,
+porque el binario se compila con los assets buenos. Comprobar que el CSS
+responde 200 no distingue un caso del otro: hay que preguntarle al navegador
+qué ha aplicado. La suite mira el `borderTopWidth` del pie, que sin Tailwind es
+0px. Las suites HTTP siguen corriendo contra el binario: hacerlas funcionar
+contra un contenedor pediría montar el almacén y rehacer la parada entre
+suites, y eso ya sería otro laboratorio.
+
+**Lo que Next servía desde disco hay que servirlo a propósito.** `public/` no
+tenía ruta en Go: `/kaicorp-mark.png` y `/og.jpg` daban 404 —el pie sin logo y
+la vista previa de los enlaces rota— sin que fallara nada más. Ahora vite los
+copia a `dist` y viajan embebidos, con caché de una hora y **no eterna**, al
+revés que los recursos con hash: su nombre no cambia con el contenido, y un
+`/og.jpg` inmutable en el navegador de alguien es una tarjeta desfasada para
+siempre. La plantilla emite además `og:image` y `og:locale`, que faltaban:
+declaraba `summary_large_image` sin imagen.
+
+**Salir se prueba por su botón.** El menú de cuenta y el `Sign out` de dentro,
+no un `POST` a `/api/auth/logout`. La primera versión hacía el POST a mano tras
+un clic con `.catch(() => {})` que se tragaba el fallo: probaba la ruta, no el
+logout.
 
 **El pie es un componente de servidor, y eso no sobrevive al port.** Lee
 `KAICORP_FOOTER_LINKS` él mismo, y en Next lo renderiza el servidor. Compilado
