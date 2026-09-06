@@ -93,6 +93,14 @@ jobs:
           SECRETDROP_TEST_LAUNCH: ./secretdrop
         run: npm run test:navegador
 
+      # Node → Go → Node sobre el mismo almacén, y nunca los dos a la vez. Es
+      # lo que decide si se puede cambiar de implementación y VOLVER: usos,
+      # lápidas, sesiones y revocaciones, escritas por una y leídas por la otra.
+      - name: Compatibilidad y vuelta atrás
+        env:
+          SECRETDROP_COMPAT_GO: ./secretdrop
+        run: npm run test:compatibilidad
+
       # ─── Y contra la imagen de verdad ─────────────────────────────────
       # El binario no basta: hay fallos que sólo existen DENTRO de la imagen y
       # que además no rompen su construcción. Sin postcss.config.mjs en la

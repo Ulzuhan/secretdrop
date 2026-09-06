@@ -31,7 +31,8 @@
     "test:backchannel": "bash scripts/test-backchannel.sh",
     "test:reinicio": "bash scripts/test-reinicio.sh",
     "test:navegador": "bash scripts/test-navegador.sh",
-    "build:web": "vite build"
+    "build:web": "vite build",
+    "test:compatibilidad": "bash scripts/test-compatibilidad.sh"
   },
   "dependencies": {
     "next": "^16.2.12",
