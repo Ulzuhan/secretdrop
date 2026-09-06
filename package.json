@@ -28,7 +28,8 @@
     "test:unit": "vitest run",
     "test:http": "./scripts/run-suites.sh",
     "postbuild": "node scripts/prepare-standalone.mjs",
-    "test:backchannel": "bash scripts/test-backchannel.sh"
+    "test:backchannel": "bash scripts/test-backchannel.sh",
+    "test:reinicio": "bash scripts/test-reinicio.sh"
   },
   "dependencies": {
     "next": "^16.2.12",

@@ -21,33 +21,46 @@ Todo lo demás —puerto, almacén, variables `SECRETDROP_*`, proveedor de
 mentira— se mantiene igual a propósito: **el contrato es el entorno y el HTTP,
 no el runtime**.
 
+## El listado, y una corrección de lo que aquí ponía
+
+`GET /api/secrets` sale de un índice en memoria. Al cargarse el módulo de esa
+ruta se lanza `cleanupExpired()`, que recorre el almacén con `loadMeta()` —y
+`loadMeta()` cachea—, así que **el índice sí se rellena desde disco**.
+
+La primera versión de este documento afirmaba lo contrario: que nadie lo
+reconstruía y que tras un reinicio la lista aparecía vacía. Era falso, y la
+prueba que lo "demostraba" sembraba ficheros **después** de arrancar, cuando ese
+recorrido ya había pasado. Una prueba que confirma lo que uno cree y no lo que
+el programa hace.
+
+Lo que sí había, y se arregló el 06-09: el barrido se lanzaba **sin esperarlo**,
+así que la primera petición al listado corría a la vez. Con 2000 registros
+sembrados antes de arrancar, ese primer listado devolvía **1606 de 2000**. Con
+1000 salía completo: es una carrera, no un umbral. No se perdían datos —los
+enlaces van por id y leen disco— pero a alguien podían faltarle secretos de su
+lista justo después de un despliegue, y aparecer minutos después.
+
+Ahora la promesa se guarda y el listado la espera. `scripts/test-reinicio.sh` es
+la regresión: siembra propios, ajenos y sin dueño **antes** de que exista el
+servidor, hace que la primera petición sea el listado, y después crea por la API,
+para el servidor y lo vuelve a arrancar con el mismo almacén.
+
+**Lo que un port debe garantizar**, y es lo único que se congela aquí: en la
+primera petición tras arrancar, el listado ya está completo; enseña sólo lo del
+titular, vivo y no quemado; y excluye lo de otras cuentas y lo que no tiene
+dueño. **Cómo** lo consiga —índice en memoria, lectura por petición, lo que
+sea— es asunto suyo.
+
 ## Lo que hay que reproducir a propósito
 
-Dos comportamientos que parecen un descuido y no lo son del todo. Un port que
-los "arregle" sin decidirlo cambia el servicio.
+La cuota cuenta lápidas y mezcla dos medidas. `saveNewMeta()` recorre todos los
+`meta.json` sin filtrar quemados ni caducados: las lápidas cuentan para el
+límite de 1000 y para los 100 MiB. Y suma **bytes en disco** de lo existente
+contra el **JSON compacto** del registro nuevo. «1000 secretos activos» no
+describe lo que hace el código.
 
-### El listado sale de un índice en memoria que nadie reconstruye
-
-`GET /api/secrets` recorre un `Map` en memoria. `loadMeta()` lo va sembrando
-cuando alguien pide un secreto por su id, pero **nada lo rellena desde disco al
-arrancar**.
-
-La consecuencia es visible: **tras reiniciar el proceso, la lista de alguien
-aparece vacía aunque todos sus enlaces sigan funcionando**. Los enlaces van por
-id y sí leen disco; el listado no.
-
-Está fijado en la suite en las dos direcciones: lo creado por la API aparece, y
-lo que sólo está en disco no aparece aunque su enlace funcione. Si el port
-reconstruye el índice —que es la optimización que contempla docs/37 §4 de
-infra— **cambia un comportamiento observable**, y eso es una decisión, no un
-detalle de implementación.
-
-### La cuota cuenta lápidas y mezcla dos medidas
-
-`saveNewMeta()` recorre todos los `meta.json` del almacén sin filtrar quemados
-ni caducados: las lápidas cuentan para el límite de 1000 y para los 100 MiB. Y
-suma **bytes en disco** de lo existente contra el **JSON compacto** del registro
-nuevo. «1000 secretos activos» no describe lo que hace el código.
+Esto se documenta, no se toca: corregirlo cambia cuándo alguien recibe un 507,
+y es una decisión aparte de este port.
 
 ## Lo que está congelado
 

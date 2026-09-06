@@ -68,30 +68,20 @@ check("una lápida responde que ya se usó", (await api(`/api/secrets/${lapida}`
 
 // Los registros anteriores al campo `owner` no tienen dueño: su enlace sigue
 // funcionando, pero no se le pueden enseñar a nadie en un listado.
+// Los registros anteriores al campo `owner` conservan su enlace: se lee por id
+// y va a disco. Que NO salgan en ningún listado se comprueba en la suite de
+// reinicio, que es la que puede sembrarlos antes de que el índice se llene.
 const heredado = await sembrar({});
-// El listado NO se reconstruye desde disco: sale de un índice en memoria que
-// sólo conoce lo que ha pasado por este proceso. Así que la mitad positiva
-// tiene que crearse por la API —si no, «no aparece el heredado» pasaría igual
-// con un listado vacío por error, que es lo que ocurría al escribir esto—.
+check("el enlace de un registro heredado sin dueño sigue sirviendo",
+  (await api(`/api/secrets/${heredado}`)).status, 200);
+
 const cookieDueno = sesion({ sub: DUENO });
 const creado = await crear(cookieDueno, { ttlHours: 2, maxViews: 2 });
 check("crear por la API devuelve el id", typeof creado.body?.id, "string");
 const listado = await api("/api/secrets", { cookie: cookieDueno });
 check("el listado del titular responde", listado.status, 200);
-const ids = (listado.body?.secrets ?? []).map((s) => s.id);
-check("  enseña lo que ha creado", ids.includes(creado.body?.id), true);
-check("  no enseña el registro heredado sin dueño", ids.includes(heredado), false);
-check("  y el enlace del heredado sigue sirviendo", (await api(`/api/secrets/${heredado}`)).status, 200);
-
-// Y el contrato incómodo, escrito para que un port lo reproduzca a propósito o
-// se decida cambiarlo: un registro que sólo está en disco no sale en el listado.
-// En producción eso significa que tras reiniciar, la lista aparece vacía aunque
-// los enlaces sigan funcionando.
-const soloEnDisco = await sembrar({ owner: DUENO, maxViews: 5 });
-const tras = await api("/api/secrets", { cookie: cookieDueno });
-check("  y lo que sólo está en disco, tampoco",
-  (tras.body?.secrets ?? []).map((x) => x.id).includes(soloEnDisco), false);
-check("  aunque su enlace sí funcione", (await api(`/api/secrets/${soloEnDisco}`)).status, 200);
+check("  y enseña lo que acaba de crear",
+  (listado.body?.secrets ?? []).map((x) => x.id).includes(creado.body?.id), true);
 
 check("un id que no existe es 404", (await api(`/api/secrets/${nuevoId()}`)).status, 404);
 check("un id con forma inválida es 404", (await api("/api/secrets/no-valido!!")).status, 404);

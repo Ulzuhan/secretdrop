@@ -5,7 +5,20 @@ import { cleanupExpired, enRango, getStore, nuevoId, saveNewMeta, type SecretMet
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 
 // ─── Startup cleanup ────────────────────────────────────────────────
-cleanupExpired();
+//
+// Este barrido es además lo que llena el índice en memoria: recorre el almacén
+// con `loadMeta()`, que cachea. El listado sale de ese índice, así que hasta que
+// termina hay secretos en disco que aún no están en él.
+//
+// Lanzarlo sin esperarlo dejaba esa ventana abierta a la primera petición: con
+// 2000 registros sembrados antes de arrancar, el primer listado devolvió 1606.
+// No es pérdida de datos —los enlaces van por id y leen disco— pero a alguien
+// le faltan secretos de su lista justo después de un despliegue, y minutos
+// después están. Con 1000 no se reprodujo: es una carrera, no un umbral.
+//
+// Se guarda la promesa y el listado la espera. Se ejecuta una sola vez por
+// proceso, y `catch` para que un fallo del barrido no tumbe cada petición.
+const arranque = cleanupExpired().catch(() => 0);
 
 /**
  * Tope del criptograma.
@@ -93,6 +106,8 @@ export async function GET() {
   // las demás y ver cuántos había. Los anteriores al campo `owner` no se
   // enseñan a nadie: sus enlaces funcionan y caducan solos (7 días como mucho).
   const cuenta = await currentAccount();
+  // Sin esto el listado puede salir corto mientras el índice se está llenando.
+  await arranque;
   const now = Date.now();
   const store = getStore();
   const secrets = Array.from(store.values())

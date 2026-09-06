@@ -33,6 +33,11 @@ jobs:
       # sesión no se puede probar de otra forma.
       - run: npm run test:backchannel
 
+      # Arranca dos veces con el mismo almacén: es la única forma de ver el
+      # listado en frío, que es donde se perdía la carrera de inicialización.
+      # Cuesta un par de segundos.
+      - run: npm run test:reinicio
+
       # After the build on purpose: Next generates the route types the checker
       # relies on (.next/types) during the build.
       - run: npx tsc --noEmit
