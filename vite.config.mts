@@ -1,3 +1,6 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -17,7 +20,19 @@ export default defineConfig({
       "document.getElementById('app')?.dataset.footerLinks",
   },
   root: "web",
-  plugins: [react()],
+  plugins: [
+    react(),
+    // `emptyOutDir` vacía el directorio, y ahí dentro vive el único fichero que
+    // el repositorio sí guarda: sin él `go:embed all:dist` no compila en un
+    // clon limpio. Se rehace al terminar, o cada build dejaría el árbol sucio
+    // con un borrado que nadie pidió.
+    {
+      name: "secretdrop:conservar-gitkeep",
+      closeBundle() {
+        writeFileSync(join(import.meta.dirname, "internal", "web", "dist", ".gitkeep"), "");
+      },
+    },
+  ],
   build: {
     outDir: "../internal/web/dist",
     emptyOutDir: true,
