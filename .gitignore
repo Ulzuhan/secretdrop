@@ -31,3 +31,6 @@ next-env.d.ts
 
 # Caché incremental de TypeScript: cambia en cada compilación
 *.tsbuildinfo
+
+# Binario del backend Go: se compila, no se guarda
+/secretdrop

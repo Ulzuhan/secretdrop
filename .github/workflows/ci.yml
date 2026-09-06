@@ -41,3 +41,29 @@ jobs:
       # After the build on purpose: Next generates the route types the checker
       # relies on (.next/types) during the build.
       - run: npx tsc --noEmit
+
+      # ─── El backend Go ────────────────────────────────────────────────
+      # El port se sostiene sólo si las MISMAS suites pasan contra las dos
+      # implementaciones. Aquí se compila, se prueban las carreras del almacén
+      # y la sesión, y después se vuelven a correr las suites HTTP apuntando al
+      # binario Go en vez de a Node.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+
+      # `./...` entraría en node_modules, que trae un paquete Go dentro.
+      - run: go vet ./cmd/... ./internal/...
+      - run: go test -race -count=1 ./cmd/... ./internal/...
+      - run: go build -o ./secretdrop ./cmd/secretdrop
+
+      - name: Las suites HTTP, contra el binario Go
+        env:
+          SECRETDROP_TEST_LAUNCH: ./secretdrop
+          SECRETDROP_TEST_BUILD_STAMP: ./secretdrop
+        run: ./scripts/run-suites.sh secretos contratos
+
+      - name: El listado en frío y tras reiniciar, contra el binario Go
+        env:
+          SECRETDROP_TEST_LAUNCH: ./secretdrop
+        run: npm run test:reinicio

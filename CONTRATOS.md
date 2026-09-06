@@ -96,6 +96,28 @@ aviso exige `exp`, un aviso con sólo `sid` se rechaza porque aquí la cookie no
 lleva `sid`, y el `jti` se apunta **después** de que la revocación esté escrita,
 para que un reintento pueda terminar lo que un fallo de disco dejó a medias.
 
+## Estado del port
+
+El backend Go pasa hoy, con las mismas suites y sin tocarlas:
+
+| | contra Node | contra Go |
+|---|---|---|
+| `secretos` | 53 | 53 |
+| `contratos` | 23 | 23 |
+| reinicio en frío y tras rearranque | ✓ | ✓ |
+
+Más las suyas propias en Go: carreras del almacén —treinta lectores contra un
+secreto de un solo uso, veinte vueltas—, persistencia antes de entregar,
+lápidas, purga al hidratar, cuota con lápidas dentro, y la sesión con su carga
+recodificada y su lista de revocación.
+
+CI corre las dos, así que una divergencia se ve el día que aparece.
+
+**Lo que todavía sirve Node y no Go:** el inicio de sesión OIDC
+(`/api/auth/login`, `callback`, `logout`), el aviso de cierre por back-channel y
+toda la interfaz. Por eso las suites `auth` y `backchannel` sólo corren contra
+Node. Es la siguiente entrega, no un olvido.
+
 ## Lo que esta entrega no hace
 
 No mide, no compara Node con Go, no toca producción y no decide si el índice se
