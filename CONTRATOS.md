@@ -110,6 +110,7 @@ El backend Go pasa hoy, con las mismas suites y sin tocarlas:
 | reinicio en frío y tras rearranque | ✓ | ✓ |
 | `navegador` | 28 | 28 |
 | `navegador`, contra la **imagen** | — | 28 |
+| `compatibilidad` (Node → Go → Node) | 22, alternando | 22, alternando |
 
 Más las suyas propias en Go: carreras del almacén —treinta lectores contra un
 secreto de un solo uso, veinte vueltas—, persistencia antes de entregar,
@@ -207,6 +208,25 @@ Y tres cosas que el port dejó escritas porque se descubrieron rompiéndose:
 - El POST de creación exige `application/json`. No es formalismo: es lo que
   obliga al navegador a preguntar antes de mandar la cookie desde otro sitio del
   mismo dominio.
+
+## Cambiar de implementación, y volver
+
+`test-compatibilidad.sh` alterna **Node → Go → Node sobre el mismo almacén**, y
+nunca los dos a la vez: cada turno para de verdad y se comprueba que el puerto
+queda libre antes del siguiente. Dos escritores sobre el mismo directorio no es
+un escenario soportado y no se prueba como si lo fuera.
+
+Node siembra cuatro secretos con dos cuentas, gasta uno entero, usa otro una
+vez de dos, y revoca una sesión con un aviso de cierre **firmado de verdad**.
+Go lo lee: la lápida no resucita, el uso previo se conserva —el siguiente
+consumo es el segundo, no el primero—, la cookie emitida por Node sigue
+valiendo, el aislamiento entre cuentas se mantiene y la revocación que escribió
+Node se respeta. Go escribe lo suyo y revoca otra cuenta. Node vuelve y **nada
+de lo gastado resucita**: ni un secreto ni un permiso, los escribiera quien los
+escribiera.
+
+Eso es lo que hace segura la vuelta atrás. Un rollback que resucitara secretos
+ya entregados sería peor que no poder volver.
 
 ## Lo que esta entrega no hace
 
