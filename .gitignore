@@ -34,3 +34,6 @@ next-env.d.ts
 
 # Binario del backend Go: se compila, no se guarda
 /secretdrop
+# Lo construye vite; no se guarda
+internal/web/dist/*
+!internal/web/dist/.gitkeep

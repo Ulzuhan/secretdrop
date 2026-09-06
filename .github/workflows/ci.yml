@@ -38,9 +38,19 @@ jobs:
       # Cuesta un par de segundos.
       - run: npm run test:reinicio
 
+      # El navegador de verdad. Se instala sólo Chromium y sólo aquí: no entra
+      # en ninguna imagen, ni en la de Node ni en la de Go.
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:navegador
+
       # After the build on purpose: Next generates the route types the checker
       # relies on (.next/types) during the build.
       - run: npx tsc --noEmit
+
+      # `web/` está excluido del tsconfig raíz —es el frontend de Vite del
+      # backend Go, con su propio shim— así que se comprueba por separado.
+      - run: npx tsc -p web/tsconfig.json --noEmit
 
       # ─── El backend Go ────────────────────────────────────────────────
       # El port se sostiene sólo si las MISMAS suites pasan contra las dos
@@ -51,6 +61,11 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: false
+
+      # Antes de vet y de compilar: los assets se embeben con go:embed, y el
+      # repositorio sólo guarda un `dist` con el .gitkeep que hace que el
+      # paquete compile en un clon limpio.
+      - run: npm run build:web
 
       # `./...` entraría en node_modules, que trae un paquete Go dentro.
       - run: go vet ./cmd/... ./internal/...
@@ -72,3 +87,8 @@ jobs:
         env:
           SECRETDROP_TEST_LAUNCH: ./secretdrop
         run: npm run test:reinicio
+
+      - name: El navegador, contra el binario Go
+        env:
+          SECRETDROP_TEST_LAUNCH: ./secretdrop
+        run: npm run test:navegador

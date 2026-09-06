@@ -18,6 +18,7 @@ import (
 
 	"github.com/Ulzuhan/secretdrop/internal/auth"
 	"github.com/Ulzuhan/secretdrop/internal/store"
+	"github.com/Ulzuhan/secretdrop/internal/web"
 )
 
 const (
@@ -35,13 +36,20 @@ type Server struct {
 	oidc        *auth.OidcConfig
 	backchannel *auth.Backchannel
 	limiter     *limiter
+	recursos    web.Recursos
 	publicHost  string
 	now         func() time.Time
 }
 
 func New(s *store.Store, v *auth.Verifier, oidc *auth.OidcConfig, d *auth.Discovery, publicHost string) *Server {
+	recursos, err := web.Cargar()
+	if err != nil {
+		// Un manifiesto ilegible no puede pasar por «no hay interfaz»: eso
+		// serviría un documento sin script y sin decir por qué.
+		panic("no se pudo leer el manifiesto de la interfaz: " + err.Error())
+	}
 	srv := &Server{store: s, verifier: v, oidc: oidc, discovery: d,
-		limiter: newLimiter(), publicHost: publicHost, now: time.Now}
+		limiter: newLimiter(), recursos: recursos, publicHost: publicHost, now: time.Now}
 	// Sin configuración de identidad no hay forma de entrar, y tampoco aviso de
 	// cierre que atender: la ruta responde 404 en vez de fingir que existe.
 	if oidc != nil {
@@ -88,6 +96,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", s.salud)
 	mux.HandleFunc("GET /v/{id}", s.visor)
 	mux.HandleFunc("GET /robots.txt", s.robots)
+	if recursos, err := web.Handler(); err == nil {
+		mux.Handle("GET /assets/", recursos)
+	}
 	mux.HandleFunc("GET /", s.portada)
 	// Las cabeceras van en una sola capa: si cada manejador pusiera las suyas,
 	// la que se olvidara no fallaría ninguna prueba hasta que alguien mirara.
@@ -145,39 +156,15 @@ func (s *Server) html(w http.ResponseWriter, estado int) string {
 	return nonce
 }
 
-// visor: la pantalla que descifra. **No lee ni consume el almacén.** El consumo
-// es la petición explícita del visor a /api/secrets/<id>, y sin clave en el
-// fragmento no llega a hacerla. Renderizar aquí convertiría abrir un enlace
-// —o que lo abriera un previsualizador de mensajería— en gastar el secreto.
-//
-// `noindex` va en el documento: un enlace de un solo uso no se indexa.
-func (s *Server) visor(w http.ResponseWriter, r *http.Request) {
-	nonce := s.html(w, http.StatusOK)
-	_ = plantillaVisor.Execute(w, map[string]any{"ID": r.PathValue("id"), "Nonce": nonce})
-}
-
-func (s *Server) robots(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	_, _ = io.WriteString(w, "User-agent: *\nAllow: /$\nDisallow: /v/\n")
-}
-
-var plantillaVisor = template.Must(template.New("visor").Parse(
-	`<!doctype html><html lang=en><meta charset=utf-8>
-<meta name="robots" content="noindex, nofollow">
-<title>SecretDrop</title>
-<main data-secret-id="{{.ID}}"><h1>SecretDrop</h1></main>
-`))
-
 // salud no consume nada ni enseña configuración: sólo dice que se está en pie.
 // En Node esto se hacía pidiendo un id de secreto inventado y esperando un 404.
 func (s *Server) salud(w http.ResponseWriter, r *http.Request) {
 	escribirJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-// portada: marco mínimo mientras la interfaz sigue siendo la de Next. La
-// pantalla de React llega en la siguiente entrega; lo que importa ahora es que
-// una ruta desconocida NO devuelva 200 con HTML, que es como una SPA mal
-// servida esconde un 404 de API.
+// portada: el documento entero. La sesión la decide el servidor, que es quien
+// tiene la cookie; el navegador no puede deducir «hay sesión» por su cuenta sin
+// inventarse una respuesta que sólo el servidor puede dar.
 //
 // El enlace de alta sale del ENTORNO y de ninguna constante. Estuvo escrito a
 // fuego apuntando al proveedor de quien escribió esto, en un repositorio con
@@ -188,26 +175,94 @@ func (s *Server) portada(w http.ResponseWriter, r *http.Request) {
 		escribirJSON(w, http.StatusNotFound, map[string]any{"error": "Not found"})
 		return
 	}
-	nonce := s.html(w, http.StatusOK)
-	if err := plantillaPortada.Execute(w, map[string]any{
-		"Nonce":  nonce,
-		"Alta":   os.Getenv("SECRETDROP_ENROLL_URL"),
-		"Cuenta": os.Getenv("SECRETDROP_ACCOUNT_URL"),
-	}); err != nil {
-		return
+	pantalla, correo := "landing", ""
+	if cuenta := s.cuenta(r); cuenta != nil {
+		pantalla, correo = "tool", cuenta.Email
 	}
+	s.documento(w, r, datos{
+		Pagina: pantalla, Email: correo,
+		Titulo:      "SecretDrop — one-time secrets, encrypted in your browser",
+		Descripcion: "Share a password once: encrypted before it leaves your browser, burned the moment it is read. The server only ever sees ciphertext. Self-hosted and open source.",
+		Canonica:    s.canonica("/"),
+	})
 }
 
-// html/template y no concatenación: escapa por contexto, así que una variable
-// de entorno rara no puede salirse del atributo y convertirse en marcado.
-var plantillaPortada = template.Must(template.New("portada").Parse(
-	`<!doctype html><html lang=en><meta charset=utf-8>
-<title>SecretDrop</title>
-<main>
-<h1>SecretDrop</h1>
-{{if .Alta}}<a href="{{.Alta}}">Request an account</a>{{end}}
-{{if .Cuenta}}<a href="{{.Cuenta}}">Your account</a>{{end}}
-</main>
+// visor: la pantalla que descifra. **No lee ni consume el almacén.** El consumo
+// es la petición explícita del visor a /api/secrets/<id>, y sin clave en el
+// fragmento no llega a hacerla. Renderizar aquí convertiría abrir un enlace
+// —o que lo abriera un previsualizador de mensajería— en gastar el secreto.
+//
+// `noindex` va en el documento: un enlace de un solo uso no se indexa. Y el id
+// se valida aquí, para que el visor no tenga que volver a fiarse de la URL.
+func (s *Server) visor(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !store.ValidID(id) {
+		id = ""
+	}
+	s.documento(w, r, datos{
+		Pagina: "viewer", SecretID: id, NoIndex: true,
+		Titulo:      "SecretDrop",
+		Descripcion: "A one-time secret, decrypted in your browser.",
+	})
+}
+
+func (s *Server) robots(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = io.WriteString(w, "User-agent: *\nAllow: /$\nDisallow: /v/\n")
+}
+
+func (s *Server) canonica(ruta string) string {
+	if s.publicHost == "" {
+		return ""
+	}
+	return "https://" + s.publicHost + ruta
+}
+
+type datos struct {
+	Pagina, Email, SecretID    string
+	Titulo, Descripcion        string
+	Canonica                   string
+	NoIndex                    bool
+	Nonce, JS, Alta, CuentaURL string
+	Footer                     bool
+	CSS                        []string
+}
+
+func (s *Server) documento(w http.ResponseWriter, r *http.Request, d datos) {
+	d.Nonce = s.html(w, http.StatusOK)
+	d.JS, d.CSS = s.recursos.JS, s.recursos.CSS
+	d.Alta = os.Getenv("SECRETDROP_ENROLL_URL")
+	d.CuentaURL = os.Getenv("SECRETDROP_ACCOUNT_URL")
+	// El pie común enseña los enlaces al resto de servicios sólo si el
+	// despliegue los pide. En Next lo leía el propio componente, que allí es de
+	// servidor; aquí el componente corre en el navegador y no tiene entorno, así
+	// que la decisión la toma el servidor y viaja como atributo.
+	d.Footer = strings.TrimSpace(os.Getenv("KAICORP_FOOTER_LINKS")) != ""
+	_ = plantilla.Execute(w, d)
+}
+
+// html/template y no concatenación: escapa por contexto, así que ni una
+// variable de entorno rara ni un id pueden salirse de su atributo.
+var plantilla = template.Must(template.New("doc").Parse(
+	`<!doctype html><html lang="en" class="h-full antialiased"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Titulo}}</title>
+<meta name="description" content="{{.Descripcion}}">
+{{if .NoIndex}}<meta name="robots" content="noindex, nofollow">{{end}}
+{{if .Canonica}}<link rel="canonical" href="{{.Canonica}}">
+<meta property="og:url" content="{{.Canonica}}">{{end}}
+<meta property="og:title" content="{{.Titulo}}">
+<meta property="og:description" content="{{.Descripcion}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SecretDrop">
+<meta name="twitter:card" content="summary_large_image">
+{{range .CSS}}<link rel="stylesheet" href="{{.}}">
+{{end}}</head>
+<body class="min-h-full flex flex-col bg-background text-foreground">
+<div id="app" data-page="{{.Pagina}}"{{if .Email}} data-email="{{.Email}}"{{end}}{{if .SecretID}} data-secret-id="{{.SecretID}}"{{end}}{{if .Alta}} data-enroll-url="{{.Alta}}"{{end}}{{if .CuentaURL}} data-account-url="{{.CuentaURL}}"{{end}}{{if .Footer}} data-footer-links="on"{{end}}></div>
+{{if .JS}}<script type="module" nonce="{{.Nonce}}" src="{{.JS}}"></script>{{end}}
+</body></html>
 `))
 
 func (s *Server) listar(w http.ResponseWriter, r *http.Request) {
