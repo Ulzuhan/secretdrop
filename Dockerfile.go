@@ -12,8 +12,12 @@ COPY package*.json ./
 # `npm ci` y no `--omit=dev`: vite y su cadena son dependencias de desarrollo, y
 # sin ellas no hay nada que compilar.
 RUN npm ci
-COPY vite.config.mts ./
+# postcss.config.mjs NO es opcional: es quien mete Tailwind. Sin él vite emite
+# el CSS fuente sin una sola utilidad generada, la página sale sin estilos y
+# nada falla — el build pasa, el asset se sirve con su MIME y pesa parecido.
+COPY vite.config.mts postcss.config.mjs ./
 COPY web ./web
+COPY public ./public
 RUN npx vite build
 
 FROM golang:1.27.1-alpine AS build

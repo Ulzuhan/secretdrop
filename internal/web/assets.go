@@ -55,6 +55,38 @@ func conBarra(rutas []string) []string {
 	return salida
 }
 
+// Publicos son los ficheros que vite copia de `public/` a la raíz de dist: el
+// logo del pie y la imagen de OpenGraph. Se enumeran en vez de escribirlos a
+// mano para que añadir uno a `public/` no exija tocar Go.
+//
+// Van aparte de los recursos con hash porque su nombre NO cambia con el
+// contenido: no se pueden cachear para siempre. Un /og.jpg inmutable en el
+// navegador de alguien es una tarjeta de enlace desfasada para siempre.
+func Publicos() ([]string, http.Handler, error) {
+	entradas, err := fs.ReadDir(incrustado, "dist")
+	if err != nil {
+		return nil, nil, err
+	}
+	sub, err := fs.Sub(incrustado, "dist")
+	if err != nil {
+		return nil, nil, err
+	}
+	nombres := []string{}
+	for _, e := range entradas {
+		// `assets` lleva lo construido con hash y `.vite` el manifiesto, que no
+		// es del sitio. `.gitkeep` sólo existe para que el paquete compile.
+		if e.IsDir() || e.Name() == ".gitkeep" {
+			continue
+		}
+		nombres = append(nombres, "/"+e.Name())
+	}
+	ficheros := http.FileServer(http.FS(sub))
+	return nombres, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		ficheros.ServeHTTP(w, r)
+	}), nil
+}
+
 // Handler sirve lo construido. Los nombres llevan hash del contenido, así que
 // se pueden cachear para siempre: si cambia el contenido, cambia el nombre.
 func Handler() (http.Handler, error) {

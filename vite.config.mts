@@ -20,6 +20,11 @@ export default defineConfig({
       "document.getElementById('app')?.dataset.footerLinks",
   },
   root: "web",
+  // `public/` está en la raíz del repo, no dentro de `web/`. Vite copia lo que
+  // haya aquí a la raíz de `dist`, y así el logo del pie y la imagen de
+  // OpenGraph viajan embebidos en el binario como todo lo demás. Sin esto Go
+  // devolvía 404 en /kaicorp-mark.png y /og.jpg: Next los servía desde disco.
+  publicDir: "../public",
   plugins: [
     react(),
     // `emptyOutDir` vacía el directorio, y ahí dentro vive el único fichero que

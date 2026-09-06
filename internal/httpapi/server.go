@@ -96,6 +96,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/health", s.salud)
 	mux.HandleFunc("GET /v/{id}", s.visor)
 	mux.HandleFunc("GET /robots.txt", s.robots)
+	// El logo del pie y la imagen de OpenGraph. Next los servía desde `public/`;
+	// aquí van embebidos, y sin estas rutas daban 404 sin que fallara nada más
+	// que el aspecto de la página y la vista previa de los enlaces.
+	if nombres, publicos, err := web.Publicos(); err == nil {
+		for _, nombre := range nombres {
+			mux.Handle("GET "+nombre, publicos)
+		}
+	}
 	if recursos, err := web.Handler(); err == nil {
 		mux.Handle("GET /assets/", recursos)
 	}
@@ -224,6 +232,7 @@ type datos struct {
 	Canonica                   string
 	NoIndex                    bool
 	Nonce, JS, Alta, CuentaURL string
+	Imagen                     string
 	Footer                     bool
 	CSS                        []string
 }
@@ -231,6 +240,12 @@ type datos struct {
 func (s *Server) documento(w http.ResponseWriter, r *http.Request, d datos) {
 	d.Nonce = s.html(w, http.StatusOK)
 	d.JS, d.CSS = s.recursos.JS, s.recursos.CSS
+	// Como en Next: la tarjeta sólo declara imagen si hay host público con el
+	// que construir una URL absoluta. Una og:image relativa no la resuelve
+	// ningún previsualizador.
+	if s.publicHost != "" {
+		d.Imagen = s.canonica("/og.jpg")
+	}
 	d.Alta = os.Getenv("SECRETDROP_ENROLL_URL")
 	d.CuentaURL = os.Getenv("SECRETDROP_ACCOUNT_URL")
 	// El pie común enseña los enlaces al resto de servicios sólo si el
@@ -256,7 +271,12 @@ var plantilla = template.Must(template.New("doc").Parse(
 <meta property="og:description" content="{{.Descripcion}}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SecretDrop">
-<meta name="twitter:card" content="summary_large_image">
+<meta property="og:locale" content="en_US">
+{{if .Imagen}}<meta property="og:image" content="{{.Imagen}}">
+<meta property="og:image:width" content="760">
+<meta property="og:image:height" content="475">
+<meta property="og:image:alt" content="SecretDrop: a secret that has already been read, with nothing left on the server">
+{{end}}<meta name="twitter:card" content="summary_large_image">
 {{range .CSS}}<link rel="stylesheet" href="{{.}}">
 {{end}}</head>
 <body class="min-h-full flex flex-col bg-background text-foreground">

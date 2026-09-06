@@ -126,6 +126,31 @@ try {
   check("  y el pie enlaza a los otros servicios",
     await pagina.locator('footer a[href="https://link.kaicorplabs.com"]').count() > 0, true);
 
+  // Que el CSS llegue con un 200 no dice nada: sin PostCSS, vite emite el CSS
+  // fuente sin una sola utilidad generada y la respuesta sigue siendo un 200
+  // de tamaño parecido. Lo único que lo distingue es preguntarle al navegador
+  // qué ha aplicado de verdad. `border-t` es de Tailwind, está en el pie —que
+  // es idéntico en las dos implementaciones— y sin ella el borde mide 0px.
+  // No vale cualquier utilidad: `mt-auto` parecía servir y no, porque
+  // getComputedStyle devuelve el margen ya resuelto en píxeles.
+  const borde = await pagina.locator("footer").evaluate(
+    (e) => getComputedStyle(e).borderTopWidth);
+  check("  y los estilos están aplicados de verdad", borde, "1px");
+
+  // El logo lo servía Next desde public/. naturalWidth y no el 200: una página
+  // de error también responde 200 en algunos servidores, y una imagen rota da
+  // cero de ancho pase lo que pase.
+  const ancho = await pagina.locator('footer img').first().evaluate(
+    (e) => e.naturalWidth);
+  check("  y el logo carga", ancho > 0, true);
+
+  // La tarjeta de enlace declara summary_large_image; sin og:image eso es una
+  // tarjeta grande vacía.
+  const og = await pagina.locator('meta[property="og:image"]').getAttribute("content");
+  check("  y la tarjeta de enlace tiene imagen", /\/og\.jpg$/.test(og ?? ""), true);
+  const imagen = await pagina.request.get(og ?? `${BASE}/og.jpg`);
+  check("    que además se sirve", imagen.status(), 200);
+
   console.log("\nEntrar de verdad, pasando por el proveedor");
   await pagina.goto(`${BASE}/api/auth/login?next=%2F`, { waitUntil: "networkidle" });
   check("vuelve a la aplicación", new URL(pagina.url()).pathname, "/");
@@ -195,12 +220,16 @@ try {
 
   console.log("\nSalir");
   await pagina.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await pagina.getByRole("button", { name: /account|cuenta|menu/i }).first().click().catch(() => {});
-  await pagina.evaluate(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-  });
+  // Por el botón, que es como sale la gente. Antes esto abría el menú con un
+  // `.catch(() => {})` que se tragaba el fallo y hacía el POST a mano: probaba
+  // la ruta, no el logout.
+  await pagina.getByRole("button", { name: /account/i }).first().click();
+  await pagina.getByRole("menuitem", { name: /sign out/i }).click();
+  await pagina.waitForFunction(
+    () => !document.querySelector("textarea"), null, { timeout: 15_000 });
   const tras = await contexto.cookies();
   check("la sesión se retira", tras.some((c) => c.name === "secretdrop_session" && c.value), false);
+  check("  y la pantalla vuelve a la portada", await pagina.locator("textarea").count(), 0);
 
   await contexto.close();
 } finally {

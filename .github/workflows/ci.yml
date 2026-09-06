@@ -92,3 +92,17 @@ jobs:
         env:
           SECRETDROP_TEST_LAUNCH: ./secretdrop
         run: npm run test:navegador
+
+      # ─── Y contra la imagen de verdad ─────────────────────────────────
+      # El binario no basta: hay fallos que sólo existen DENTRO de la imagen y
+      # que además no rompen su construcción. Sin postcss.config.mjs en la
+      # etapa de assets, vite emite el CSS fuente sin una sola utilidad
+      # generada: el build pasa, el asset se sirve con su MIME y con tamaño
+      # parecido, y la página sale sin estilos. Sólo se ve renderizando.
+      - run: docker build -f Dockerfile.go -t secretdrop-go:ci .
+
+      - name: El navegador, contra la imagen Go
+        env:
+          SECRETDROP_TEST_LAUNCH: bash scripts/lanzar-imagen.sh
+          SECRETDROP_TEST_IMAGE: secretdrop-go:ci
+        run: npm run test:navegador
