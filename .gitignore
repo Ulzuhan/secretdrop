@@ -1,39 +1,40 @@
-# env files — use explicit names, NOT wildcard
-.env
-.env.local
-.env*.local
+# Dependencies and tooling caches
+/node_modules/
+*.tsbuildinfo
+__pycache__/
 
-# SQLite — NEVER commit
+# Generated application and test output
+/secretdrop
+/build/
+/coverage/
+/test-results/
+/playwright-report/
+/internal/web/dist/*
+!/internal/web/dist/.gitkeep
+
+# Private configuration, certificates and uploaded data
+.env*
+!.env.example
+*.pem
+/.local/
+/data/
+.secretdrop-store/
+
+# Legacy generated caches: never reintroduce them after switching old branches
+/.next/
+/out/
+.vercel/
+next-env.d.ts
+
+# Editor and package-manager noise
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Never commit local database fixtures
 *.db
 *.db-journal
 *.db-shm
 *.db-wal
-
-# Secrets storage
-.secretdrop-store/
-
-# Next.js
-.next/
-out/
-
-# Node
-node_modules/
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS
-.DS_Store
-# typescript
-next-env.d.ts
-
-# Caché incremental de TypeScript: cambia en cada compilación
-*.tsbuildinfo
-
-# Binario del backend Go: se compila, no se guarda
-/secretdrop
-# Lo construye vite; no se guarda
-internal/web/dist/*
-!internal/web/dist/.gitkeep

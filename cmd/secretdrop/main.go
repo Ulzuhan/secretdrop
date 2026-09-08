@@ -41,7 +41,7 @@ func entero(nombre string, porDefecto, min, max int64) int64 {
 }
 
 // sonda: el healthcheck del contenedor, dentro del propio binario porque la
-// imagen final no lleva shell, curl ni node con los que preguntar desde fuera.
+// sonda no depende de curl ni de un intérprete JavaScript externo.
 //
 // Pide un secreto que no existe y exige un 404, igual que la imagen de Node.
 // `/api/health` devuelve 200 fijo sin tocar el almacén, así que sólo diría que

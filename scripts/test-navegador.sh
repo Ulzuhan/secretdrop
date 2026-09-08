@@ -7,8 +7,7 @@
 # `Secure` de las cookies no se puede comprobar de otra forma, y es justo lo
 # que se coló en el port.
 #
-# Necesita un build antes: `npm run build` para Node, o `npx vite build` y
-# `go build` para Go.
+# Necesita npm run build; HTTPS comprueba también las cookies Secure.
 set -uo pipefail
 set -m
 
@@ -23,7 +22,7 @@ export SECRETDROP_SESSION_SECRET="secreto-de-pruebas-secretdrop-32-bytes-minimo"
 WORK="$(mktemp -d)"
 export CERT="$WORK/cert.pem" LLAVE="$WORK/key.pem"
 LOG="$WORK/app.log"
-LANZAR="${SECRETDROP_TEST_LAUNCH:-node .next/standalone/server.js}"
+LANZAR="${SECRETDROP_TEST_LAUNCH:-./secretdrop}"
 
 servidor=""
 parar() {
@@ -33,19 +32,23 @@ parar() {
   servidor=""
 }
 limpiar() { parar; rm -rf "$WORK"; }
-trap 'limpiar; exit 130' INT TERM
+trap limpiar EXIT
+trap 'exit 130' INT TERM
+for puerto in "$PUERTO_APP" "$PUERTO_TLS" "$PUERTO_IDP"; do
+  ss -tln | grep -qE ":$puerto " && { echo "puerto $puerto ocupado"; exit 2; }
+done
 
 openssl req -x509 -newkey rsa:2048 -nodes -keyout "$LLAVE" -out "$CERT" \
   -days 1 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1" 2>/dev/null || {
   echo "no se pudo generar el certificado"; limpiar; exit 1; }
 
-# NODE_ENV=production porque así corre de verdad, y porque es de lo que Node
-# hace depender el `Secure` de sus cookies.
-NODE_ENV=production PORT="$PUERTO_APP" HOSTNAME=127.0.0.1 \
+# Secure cookies are required through the synthetic HTTPS proxy.
+SECRETDROP_INSECURE_COOKIES=0 PORT="$PUERTO_APP" HOSTNAME=127.0.0.1 \
   SECRETDROP_STORE_DIR="$WORK/almacen" \
   SECRETDROP_PUBLIC_HOST="127.0.0.1:$PUERTO_TLS" \
   SECRETDROP_OIDC_CLIENT_ID=pruebas \
   SECRETDROP_OIDC_CLIENT_SECRET=pruebas \
+  SECRETDROP_OIDC_INTERNAL_BASE="http://127.0.0.1:$PUERTO_IDP" \
   SECRETDROP_OIDC_ISSUER="$EMISOR/" \
   SECRETDROP_OIDC_REDIRECT_URI="$BASE/api/auth/callback" \
   SECRETDROP_ENROLL_URL="https://idp.example.invalid/if/flow/enroll-secretdrop/" \
@@ -64,5 +67,4 @@ fi
 node scripts/test-navegador.mjs
 estado=$?
 [ "$estado" -eq 0 ] || { echo "--- registro de la aplicación ---"; tail -20 "$LOG"; }
-limpiar
 exit "$estado"

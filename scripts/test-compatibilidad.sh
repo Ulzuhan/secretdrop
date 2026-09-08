@@ -6,9 +6,8 @@
 # de verdad antes de que empiece el siguiente: dos escritores sobre el mismo
 # directorio no es un escenario soportado y no se va a medir como si lo fuera.
 #
-#   npm run build                       # el standalone de Node
-#   go build -o /tmp/sd ./cmd/secretdrop
-#   SECRETDROP_COMPAT_GO=/tmp/sd npm run test:compatibilidad
+#   npm run build
+#   npm run test:compatibilidad  # Docker pulls the pinned legacy image as needed
 set -uo pipefail
 set -m
 
@@ -21,8 +20,9 @@ export ORIGEN_IDP="http://127.0.0.1:$PUERTO_IDP"
 export SECRETDROP_SESSION_SECRET="${SECRETDROP_SESSION_SECRET:-secreto-de-pruebas-secretdrop-32-bytes-minimo}"
 export CLIENT_ID="secretdrop-pruebas"
 
-NODE_LANZAR="${SECRETDROP_COMPAT_NODE:-node .next/standalone/server.js}"
-GO_LANZAR="${SECRETDROP_COMPAT_GO:-}"
+NODE_LANZAR="${SECRETDROP_COMPAT_NODE:-bash scripts/lanzar-imagen.sh}"
+export SECRETDROP_TEST_IMAGE="${SECRETDROP_TEST_IMAGE:-ghcr.io/ulzuhan/secretdrop:0.7.3@sha256:4103ac55664ce49d81bf7b38c6cccbee47d06f7e339ed477398c4be1b7065e2d}"
+GO_LANZAR="${SECRETDROP_COMPAT_GO:-./secretdrop}"
 [ -n "$GO_LANZAR" ] || { echo "hace falta SECRETDROP_COMPAT_GO con el binario Go"; exit 2; }
 
 WORK="$(mktemp -d)"
@@ -48,7 +48,8 @@ parar() {
 }
 
 limpiar() { parar; [ -n "$idp" ] && kill "$idp" 2>/dev/null; rm -rf "$WORK"; }
-trap 'limpiar; exit 130' INT TERM
+trap limpiar EXIT
+trap 'exit 130' INT TERM
 
 arrancar() { # $1 = etiqueta, $2 = orden
   ss -tln 2>/dev/null | grep -qE ":$PUERTO " && { echo "el puerto $PUERTO ya está ocupado"; return 1; }
@@ -62,6 +63,7 @@ arrancar() { # $1 = etiqueta, $2 = orden
     SECRETDROP_OIDC_CLIENT_ID="$CLIENT_ID" \
     SECRETDROP_OIDC_CLIENT_SECRET=pruebas \
     SECRETDROP_OIDC_REDIRECT_URI="$BASE/api/auth/callback" \
+    SECRETDROP_OIDC_INTERNAL_BASE="$ORIGEN_IDP" \
     SECRETDROP_OIDC_ISSUER="$ORIGEN_IDP/application/o/secretdrop" \
     $2 >>"$LOG" 2>&1 &
   servidor=$!
@@ -71,6 +73,10 @@ arrancar() { # $1 = etiqueta, $2 = orden
   done
   echo "$1 no arrancó:"; tail -20 "$LOG"; return 1
 }
+
+for puerto in "$PUERTO" "$PUERTO_IDP"; do
+  ss -tln | grep -qE ":$puerto " && { echo "puerto $puerto ocupado"; exit 2; }
+done
 
 node scripts/proveedor-firmante.mjs "$PUERTO_IDP" >>"$LOG" 2>&1 &
 idp=$!
@@ -94,6 +100,5 @@ echo
 [ "$fallo" -eq 0 ] && { node scripts/test-compatibilidad.mjs verificar-node || fallo=1; }
 
 [ "$fallo" -ne 0 ] && { echo "--- registro ---"; tail -30 "$LOG"; }
-limpiar
 [ "$fallo" -eq 0 ] && echo && echo "todo verde"
 exit "$fallo"

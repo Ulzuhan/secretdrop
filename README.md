@@ -1,114 +1,113 @@
 # SecretDrop
 
-**Share a secret once.** Encrypted in the browser before it leaves, burned the moment it is read. Self-hosted.
+Share a secret once. Encrypted in the browser, with a Go backend and a React interface. Self-hosted.
 
 [![CI](https://github.com/Ulzuhan/secretdrop/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulzuhan/secretdrop/actions/workflows/ci.yml)
 [![Container image](https://github.com/Ulzuhan/secretdrop/actions/workflows/docker.yml/badge.svg)](https://github.com/Ulzuhan/secretdrop/pkgs/container/secretdrop)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![Send it once, then it's gone — and what the second person to click the link would see: a burned secret with nothing left on the server](assets/screenshot.jpg)
+![Secret creation and the burned-link screen](assets/screenshot.jpg)
 
-Passwords, API keys and one-off credentials do not belong in chat history or email threads. SecretDrop turns them into a link that works exactly as many times as you allow — once, by default — and then destroys itself.
+Passwords, API keys and one-off credentials do not belong in chat history. SecretDrop turns them into a link with an expiry and a view budget — one view by default. Creating and listing secrets requires an OIDC account; recipients only need the link.
 
-## Security model
+## How it works
 
-The server never sees the plaintext — not even with full disk access:
+1. The browser encrypts with AES-256-GCM and a random 256-bit key using Web Crypto.
+2. Go receives ciphertext, IV and metadata. The key stays in the URL fragment: `/v/<id>#<key>`, which browsers do not send in HTTP requests.
+3. The recipient's browser fetches the ciphertext and decrypts it locally. This fetch **consumes a view**, even if decryption later fails.
+4. On the last permitted view, the server persists a tombstone without ciphertext before returning the encrypted payload. A second reader cannot reuse that view.
 
-1. The secret is encrypted **in the browser** with AES-256-GCM under a random 256-bit key (Web Crypto API, `src/lib/crypto.ts`).
-2. The key travels in the **URL fragment** — `/v/<id>#<key>` — which browsers never send to servers.
-3. The server stores only the ciphertext, the IV and the metadata (expiry, view budget).
-4. Opening the link fetches the ciphertext, and the browser decrypts it locally with the key from the fragment.
+There are no third-party analytics or database services. Encryption protects stored content, not a compromised browser or a server that delivers malicious JavaScript. Treat the **full link** as a secret; do not paste it into logs or support tickets.
 
-Same security model as OneTimeSecret, Yopass or PrivateBin.
+## Architecture
 
-## Burn semantics
+| Part | Implementation |
+|---|---|
+| HTTP, OIDC and storage | Go standard library, `cmd/secretdrop` and `internal/` |
+| Interface | React 19 + TypeScript in `src/`, built with Vite and Tailwind |
+| Encryption | One shared `src/lib/crypto.ts`, executed in the browser |
+| Production | One Go binary with embedded assets; **no Node.js runtime** |
+| Build and tests | Node.js/npm for frontend tooling and test fixtures |
 
-- **View budget** — 1 to 10 views, default 1. The view that exhausts the budget writes a durable tombstone with no ciphertext before returning it; a burned or expired link answers `410`, never the ciphertext again.
-- **Expiry** — 1 hour to 7 days, default 24 h. Expired secrets are removed on access, at process startup, and by `POST /api/cleanup`.
-- **Storage** — flat files under `.secretdrop-store/` with an in-memory cache in front. No database required.
+The Next.js backend is no longer maintained in this tree. Historical source remains in Git; the pinned 0.7.3 image remains a compatibility fixture, not a second implementation to build.
 
-## Who can do what
+## Run locally
 
-The asymmetry is the whole design: **creating a secret needs an account, opening one does not.** Whoever you send a link to is, by definition, somebody without an account here — asking them to get one would defeat the point of the tool. Sign-in (OIDC, e.g. against Authentik) guards the writing side only; `/v/<id>` stays open to anyone holding the link. There is no user store: a session is just a signed cookie carrying the identity the OIDC provider vouched for.
-
-## Quickstart
+Requires Go 1.27.1 and Node.js 22 or newer.
 
 ```bash
 npm ci
-npm run dev        # http://localhost:3461
+npm run dev
+# http://127.0.0.1:13461
 ```
 
-Until OIDC is configured nobody can sign in to create secrets — set the variables below.
+This builds React and Go, then runs the binary with an isolated `.local/data` store. It is **not** a hot-reload server: restart after source changes. Local HTTP explicitly disables Secure cookies; production keeps them enabled by default. If no session key is exported, the dev script generates an ephemeral one: restarting invalidates those local sessions. Direct binary and container launches require a configured key.
 
-## Environment variables
-
-| Variable | Purpose |
-|---|---|
-| `SECRETDROP_SESSION_SECRET` | HMAC key that signs the session cookie. Without it (and an OIDC client), nobody can sign in. |
-| `SECRETDROP_OIDC_CLIENT_ID` / `_SECRET` | OIDC client credentials. |
-| `SECRETDROP_OIDC_REDIRECT_URI` | Must match one of the URIs registered in the provider. |
-| `SECRETDROP_OIDC_ISSUER` | The provider's issuer URL. Every endpoint (authorize, token, userinfo, end-session, JWKS) is read from its `/.well-known/openid-configuration`, so no provider-specific paths are baked in |
-| `SECRETDROP_OIDC_INTERNAL_BASE` | The provider as this server sees it — redeeming the authorization code never leaves the internal network. |
-| `SECRETDROP_ENROLL_URL` | Where somebody with no account is sent to ask for one: your provider's enrolment flow. It is the landing page's "Request an account" button, and without it there is no button — which is right when the provider has no self-service sign-up. It used to be a constant in the source pointing at *our* provider, so anyone deploying this handed their visitors a sign-up link into a stranger's identity provider. |
-| `SECRETDROP_ACCOUNT_URL` | The provider's own account page — email, password, second factor, sessions. None of that belongs to this app, and without it the account menu simply does not link anywhere. Authentik serves it at `/if/user/`. |
-| `SECRETDROP_SESSION_TTL_HOURS` | Signed-session lifetime; default 12 h, clamped to 1–24 h. |
-| `SECRETDROP_OIDC_TIMEOUT_MS` | OIDC network timeout; default 10 s. |
-| `SECRETDROP_MAX_STORE_BYTES` | Total on-disk quota; default 100 MiB. |
-| `SECRETDROP_MAX_ACTIVE_SECRETS` | Active-secret quota; default 1000. |
-| `SECRETDROP_STORE_DIR` | Where secrets live. Defaults to `.secretdrop-store` next to the code. Configurable so the test suite does not write into the real store — before it existed, every run left its own secrets mixed in with people's, under the same automatic cleanup. |
-| `SECRETDROP_PUBLIC_HOST` | Public hostname the origin check compares against. Unset, the incoming `Host` is used, which is right behind a tunnel that preserves it — verified. Only needed behind a proxy that rewrites `Host` with an internal name. |
-
-
-**Losing access takes effect immediately.** `POST /api/auth/backchannel-logout`
-implements OIDC Back-Channel Logout — point the provider at it in the client's
-*Logout URI*. The session here is a signed cookie with no server-side state, so
-there is nothing to delete: the notification records that person on a small
-revocation list (an opaque id and a date, pruned automatically), and their
-cookies stop working from that moment. Sessions also expire on their own after
-SECRETDROP_SESSION_TTL_HOURS (12 by default, 24 maximum), which is the bound that
-holds even when no notification arrives — the provider only notifies clients
-whose access token is still alive.
-
-## Production deployment
-
-See [`DEPLOYMENT.md`](DEPLOYMENT.md). Run one application process behind a TLS reverse proxy; in-process locks, quotas and rate limits are not distributed. Do not back up the payload store, because restoring it can resurrect data that should have expired.
-
-## Tests
+Configure OIDC in the process environment to sign in. See [.env.example](.env.example); Go does **not** automatically load `.env` or `.env.local`. For a trusted local `.env`, export it before starting:
 
 ```bash
-npm test           # unit tests, then the HTTP suites
-npm run test:unit  # just the pure functions
-npm run test:http  # just the suites, needs a build first
+set -a
+. ./.env
+set +a
+npm run dev
 ```
 
-The unit tests cover the two functions that were **actually broken** when this
-service was audited — the id validation and the range clamp — plus the one that
-holds the whole promise together: two requests arriving at once for the same secret
-have to be talking about the same object. If each gets its own copy, each keeps its
-own view count, all of them think they are the first, and a one-time secret goes out
-to all of them. That was proven real by widening the window on purpose: **thirty
-readers, thirty copies of a single-use secret**.
+Register `http://127.0.0.1:13461/api/auth/callback` with your provider for local testing. Without OIDC, public pages render but creating secrets is unavailable.
 
-The HTTP suites start their own server with its own store. `test-auth` is the door;
-`test-secretos` is the promise — read once and no more, expiry, the caps, and the
-identifier that comes from the URL.
+## Deploy
 
-That last one is worth a note. The suite drops **two decoys outside the store**, one
-expired and one live, because the obvious version of the test proved nothing: asking
-for `../../etc/passwd` returns 404 whether the validation is there or not, since
-there is no `meta.json` behind it. With a real file on the other side, removing the
-validation shows both halves of what was once a live vulnerability — the live decoy
-gets read, and the expired one gets **deleted**.
+```bash
+cp .env.example .env
+# Set the session signing key and OIDC configuration; protect this file.
+docker compose up -d --build
+```
 
-## API
+Compose binds to `127.0.0.1:3461`. Put a trusted TLS proxy in front and run **one instance per store**: locks, quotas and rate limits are process-local. The image runs as UID 10001 with a persistent `/data` volume. See [deployment and rollback](DEPLOYMENT.md) before exposing it.
 
-| Route | Auth | Purpose |
-|---|---|---|
-| `POST /api/secrets` | account | Store ciphertext + IV; returns the id. |
-| `GET /api/secrets` | account | List **your** live secrets (metadata only, never ciphertext). It used to list everyone's — and since reading consumes a view, the ids it leaked let any account *burn* other people's secrets without being able to decrypt them. Secrets store their creator's `sub` now; ones from before are listed to nobody and expire on their own (7 days at most). |
-| `GET /api/secrets/:id` | none | Fetch ciphertext + IV; counts toward the view budget. |
-| `POST /api/cleanup` | account | Purge expired and burned secrets. |
+## Configuration
 
-## Stack
+| Variable | Purpose / default |
+|---|---|
+| `SECRETDROP_SESSION_SECRET` | Session HMAC key; generate with `openssl rand -hex 32`. |
+| `SECRETDROP_OIDC_CLIENT_ID` / `SECRETDROP_OIDC_CLIENT_SECRET` | Provider credentials. |
+| `SECRETDROP_OIDC_ISSUER` | Discovery URL base; endpoint paths come from the provider. |
+| `SECRETDROP_OIDC_REDIRECT_URI` | Registered callback URL. |
+| `SECRETDROP_OIDC_INTERNAL_BASE` | Optional server-side provider origin; defaults to the issuer origin. |
+| `SECRETDROP_ENROLL_URL` / `SECRETDROP_ACCOUNT_URL` | Optional enrolment and account-management links. |
+| `SECRETDROP_SESSION_TTL_HOURS` | Default 12 h, clamped to 1–24 h. |
+| `SECRETDROP_OIDC_TIMEOUT_MS` | Default 10000 ms, clamped to 1000–60000 ms. |
+| `SECRETDROP_STORE_DIR` | Default `.secretdrop-store`; image uses `/data`, dev script uses `.local/data`. |
+| `SECRETDROP_MAX_STORE_BYTES` | Storage quota, default 100 MiB. |
+| `SECRETDROP_MAX_ACTIVE_SECRETS` | Record quota, default 1000; retained tombstones also count. |
+| `SECRETDROP_PUBLIC_HOST` | Optional canonical host for origin checks and public metadata. |
+| `SECRETDROP_INSECURE_COOKIES` | Set to `1` **only for local HTTP**; secure by default. |
+| `KAICORP_FOOTER_LINKS` | Set to `on` to show sibling-service links. |
+| `HOSTNAME` / `PORT` | Bind address and port. Dev binds loopback; image uses port 3461. |
 
-Next.js 16 · React 19 · TypeScript. No runtime dependencies beyond Next itself — the crypto is the platform's.
+## Contracts that matter
+
+- View budget: 1–10, default 1. Expiry: 1–168 hours, default 24.
+- The HTML viewer does not access the store. Without a fragment key, the client does not consume a secret either. **Opening a full link does consume it.**
+- The last view burns before delivery. A failed response can therefore spend a view; delivery is not an acknowledgement protocol.
+- Listings contain only the account's live metadata, never ciphertext or another account's identifiers. The index is rebuilt before serving requests.
+- OIDC back-channel logout persists revocations. Removing a provider permission without a valid notification does not immediately invalidate an issued cookie; its expiry remains the fallback bound.
+- Never restore old payloads or revocation files to roll back code: this can resurrect consumed secrets or revoked sessions.
+
+[CONTRATOS.md](CONTRATOS.md) records the compatibility and security contracts.
+
+## Verify changes
+
+```bash
+npm run lint
+npm run typecheck
+npm test                         # build, JS unit, Go race, HTTP, logout, restart
+npx playwright install chromium
+npm run test:navegador            # HTTPS + synthetic OIDC provider
+npm run test:compatibilidad       # pinned Node image → Go → pinned Node image
+```
+
+Browser tests also run against the final container in CI. Fixtures use temporary stores, synthetic identities and loopback ports; no production account is needed. Docker is required for compatibility and image tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for the image check and tool requirements.
+
+## License
+
+[MIT](LICENSE).

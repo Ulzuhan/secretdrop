@@ -15,27 +15,28 @@
     "encryption",
     "webcrypto",
     "self-hosted",
-    "nextjs"
+    "golang",
+    "react"
   ],
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3461",
-    "build": "next build",
-    "start": "next start -p 3461",
-    "lint": "eslint",
-    "test": "vitest run && ./scripts/run-suites.sh",
+    "dev": "npm run build && bash scripts/dev.sh",
+    "build": "npm run build:web && go build -trimpath -o secretdrop ./cmd/secretdrop",
+    "start": "./secretdrop",
+    "lint": "eslint .",
+    "test": "npm run build && npm run test:unit && npm run test:go && npm run test:http && npm run test:backchannel && npm run test:reinicio",
     "test:watch": "vitest",
     "test:unit": "vitest run",
     "test:http": "./scripts/run-suites.sh",
-    "postbuild": "node scripts/prepare-standalone.mjs",
     "test:backchannel": "bash scripts/test-backchannel.sh",
     "test:reinicio": "bash scripts/test-reinicio.sh",
     "test:navegador": "bash scripts/test-navegador.sh",
     "build:web": "vite build",
-    "test:compatibilidad": "bash scripts/test-compatibilidad.sh"
+    "test:compatibilidad": "bash scripts/test-compatibilidad.sh",
+    "typecheck": "tsc --noEmit",
+    "test:go": "go test -race ./cmd/... ./internal/..."
   },
   "dependencies": {
-    "next": "^16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -47,17 +48,21 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "6.1.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite": "8.2.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@eslint/js": "^9.39.4",
+    "typescript-eslint": "^8.59.4",
+    "eslint-plugin-react-hooks": "^7.1.1"
   },
   "overrides": {
-    "sharp": "^0.35.0",
     "postcss": "^8.5.18",
     "nanoid": "3.3.18",
     "js-yaml": "^4.3.1",
     "brace-expansion": "^2.0.2"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

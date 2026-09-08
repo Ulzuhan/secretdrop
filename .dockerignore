@@ -1,11 +1,27 @@
-.git
-.next
-node_modules
+# Never include credentials, uploaded files or development stores.
+.env*
+*.pem
 .secretdrop-store
-.env
-.env.local
-npm-debug.log*
-web/node_modules
-# Los assets se compilan dentro de la imagen; un `vite build` local no debe
-# colarse en ella ni decidir qué interfaz se embebe.
+data
+.local
+
+# Dependencies and assets are built inside the image.
+node_modules
 internal/web/dist
+secretdrop
+.next
+out
+build
+*.tsbuildinfo
+
+# Repository-only material and test output.
+.git
+.github
+deploy
+docs
+assets
+*.md
+coverage
+test-results
+playwright-report
+*.log

@@ -6,11 +6,10 @@
 #
 # `--network host` porque el proveedor sintético y el proxy TLS de la prueba
 # escuchan en el loopback del anfitrión, y la aplicación tiene que llegar a uno
-# y ser alcanzable por el otro. No se monta nada: el almacén se queda dentro del
-# contenedor, que se va con `--rm`.
+# y ser alcanzable por el otro. El montaje opcional se describe abajo.
 set -euo pipefail
 
-IMAGEN="${SECRETDROP_TEST_IMAGE:-secretdrop-go:sd3b}"
+IMAGEN="${SECRETDROP_TEST_IMAGE:-secretdrop-cleanup:local}"
 NOMBRE="secretdrop-prueba-$$"
 
 # `docker run` en primer plano reenvía las señales, pero si algo lo mata a él y

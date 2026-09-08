@@ -48,7 +48,7 @@ for (const destino of [
 ]) {
   const res = await fetch(`${BASE}/api/auth/login?next=${encodeURIComponent(destino)}`, { redirect: "manual" });
   const location = res.headers.get("location") ?? "";
-  const sale = Boolean(location) && !location.startsWith("/") && !/^https?:\/\/127\.0\.0\.1:9999/.test(location);
+  const sale = Boolean(location) && !location.startsWith("/") && new URL(location, BASE).origin !== (process.env.ORIGEN_IDP ?? "http://127.0.0.1:9999");
   check(`next=${destino.trim().slice(0, 20)} no saca de casa`, sale, false);
 }
 

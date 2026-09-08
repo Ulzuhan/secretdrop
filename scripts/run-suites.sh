@@ -17,20 +17,14 @@ set -m
 
 cd "$(dirname "$0")/.."
 
-# Qué se arranca. Por omisión el artefacto standalone de Next, que es lo que
-# ejecuta producción. Se deja cambiar para poder apuntar ESTAS MISMAS suites a
-# otra implementación del mismo contrato —el port a Go— sin tocar las pruebas:
-# lo que se congela aquí es el comportamiento HTTP y el entorno, no el runtime.
-#
-#   SECRETDROP_TEST_LAUNCH="./secretdrop" ./scripts/run-suites.sh
-#
-# Va sin comillas al usarse, para admitir una orden con argumentos.
-LANZAR="${SECRETDROP_TEST_LAUNCH:-node .next/standalone/server.js}"
-# Fichero cuya fecha delata un build viejo. El de Next no existe en otra
-# implementación, así que la comprobación se salta si no está, avisando.
-SELLO_BUILD="${SECRETDROP_TEST_BUILD_STAMP:-.next/BUILD_ID}"
+# Go is the default. An explicit launcher may exercise the same HTTP contract.
+LANZAR="${SECRETDROP_TEST_LAUNCH:-./secretdrop}"
+# Optional timestamp override for an external launcher.
+SELLO_BUILD="${SECRETDROP_TEST_BUILD_STAMP:-./secretdrop}"
 
 PUERTO="${PORT:-3992}"
+PUERTO_IDP="${PUERTO_IDP:-9999}"
+export ORIGEN_IDP="http://127.0.0.1:$PUERTO_IDP"
 export BASE="http://127.0.0.1:$PUERTO"
 export SECRETDROP_SESSION_SECRET="${SECRETDROP_SESSION_SECRET:-secreto-de-pruebas-secretdrop-32-bytes-minimo}"
 LOG="$(mktemp)"
@@ -47,22 +41,14 @@ export ALMACEN="$RAIZ_PRUEBAS/almacen"
 # llamaba a `deleteSecret()` sobre lo que encontrara—.
 export SENUELO="$RAIZ_PRUEBAS/senuelo"
 mkdir -p "$SENUELO"
-cat > "$SENUELO/meta.json" <<'JSON'
-{"id":"senuelo","ciphertext":"NO-DEBERIA-SALIR-DE-AQUI","iv":"aaaabbbbccccdddd",
- "expiresAt":1,"maxViews":1,"viewCount":0,"createdAt":1,"burned":false}
-JSON
-
-# Y un segundo señuelo VIGENTE, para la otra mitad del fallo. El caducado prueba
-# el borrado; éste prueba la lectura, que es la que entrega el contenido.
 export SENUELO_VIVO="$RAIZ_PRUEBAS/senuelovivo"
 mkdir -p "$SENUELO_VIVO"
-python3 - "$SENUELO_VIVO/meta.json" <<'PY'
-import json, sys, time
-json.dump({"id": "senuelovivo", "ciphertext": "TAMPOCO-DEBERIA-SALIR", "iv": "aaaabbbbccccdddd",
-           "expiresAt": int(time.time() * 1000) + 86_400_000, "maxViews": 5,
-           "viewCount": 0, "createdAt": int(time.time() * 1000), "burned": False},
-          open(sys.argv[1], "w"))
-PY
+node --input-type=module <<'JS'
+import { writeFileSync } from 'node:fs';
+const base = {iv:'aaaabbbbccccdddd', maxViews:1, viewCount:0, createdAt:1, burned:false};
+writeFileSync(process.env.SENUELO+'/meta.json', JSON.stringify({...base, id:'senuelo', ciphertext:'NO-DEBERIA-SALIR-DE-AQUI', expiresAt:1}));
+writeFileSync(process.env.SENUELO_VIVO+'/meta.json', JSON.stringify({...base, id:'senuelovivo', ciphertext:'TAMPOCO-DEBERIA-SALIR', expiresAt:Date.now()+86400000, maxViews:5}));
+JS
 
 TODAS=(auth secretos contratos interfaz)
 SUITES=("${@:-${TODAS[@]}}")
@@ -78,10 +64,11 @@ idp=""
 # que la aplicación obedece al proveedor en vez de llevar rutas escritas.
 arrancar_idp() {
   [ -z "$idp" ] || return 0
-  node scripts/idp-falso.mjs 9999 /application/o/secretdrop/ >/dev/null 2>&1 &
+  ss -tln | grep -qE ":$PUERTO_IDP " && { echo "puerto del IdP ocupado"; return 1; }
+  node scripts/idp-falso.mjs "$PUERTO_IDP" /application/o/secretdrop/ >/dev/null 2>&1 &
   idp=$!
   for _ in $(seq 1 40); do
-    curl -sf -o /dev/null "http://127.0.0.1:9999/application/o/secretdrop/.well-known/openid-configuration" && return 0
+    curl -sf -o /dev/null "$ORIGEN_IDP/application/o/secretdrop/.well-known/openid-configuration" && return 0
     sleep 0.25
   done
   echo "el idp de pruebas no arrancó"; return 1
@@ -96,9 +83,7 @@ parar_idp() {
 
 parar() {
   [ -n "$servidor" ] || return 0
-  # El grupo entero, no el proceso: `next start` levanta un trabajador aparte, y
-  # matar sólo al padre deja el puerto ocupado. La siguiente suite encontraría un
-  # servidor en pie, decidiría que ya ha arrancado, y mediría el de antes.
+  # Stop the launcher and all its children, including container launchers.
   kill -- -"$servidor" 2>/dev/null || kill "$servidor" 2>/dev/null
   wait "$servidor" 2>/dev/null
   servidor=""
@@ -109,7 +94,9 @@ parar() {
   done
   echo "aviso: el puerto $PUERTO sigue ocupado"
 }
-trap 'parar; parar_idp; exit 130' INT TERM
+limpiar() { parar; parar_idp; rm -f "$LOG"; rm -rf "$RAIZ_PRUEBAS"; }
+trap limpiar EXIT
+trap 'exit 130' INT TERM
 
 arrancar() {
   arrancar_idp || return 1
@@ -121,14 +108,7 @@ arrancar() {
   # Almacén aparte, y no el de verdad. Sin esto cada tirada de pruebas dejaba sus
   # secretos mezclados con los de la gente, en el mismo directorio y con la misma
   # limpieza automática pasándoles por encima.
-  # Se arranca el artefacto standalone, que es el que ejecuta producción y el que
-  # se empaquetará en la imagen. `next start` sirve `.next`, que es otra cosa.
-  #
-  # OJO: las asignaciones van encadenadas con `\`, y meter un comentario entre
-  # medias rompe la continuación **en silencio** — el servidor arranca igual, pero
-  # sin ninguna variable. Por eso este comentario está aquí y no ahí abajo.
-  # El servidor standalone no acepta `-p`: toma PORT y HOSTNAME del entorno, y sin
-  # HOSTNAME escucha en 0.0.0.0 — comprobado.
+  # Isolated process and store: never use production credentials or data.
   PORT="$PUERTO" HOSTNAME=127.0.0.1 \
     SECRETDROP_STORE_DIR="$ALMACEN" \
     SECRETDROP_MAX_STORE_BYTES=65536 \
@@ -136,8 +116,8 @@ arrancar() {
     SECRETDROP_OIDC_CLIENT_ID=pruebas \
     SECRETDROP_OIDC_CLIENT_SECRET=pruebas \
     SECRETDROP_OIDC_REDIRECT_URI="$BASE/api/auth/callback" \
-    SECRETDROP_OIDC_ISSUER="http://127.0.0.1:9999/application/o/secretdrop/" \
-    SECRETDROP_OIDC_INTERNAL_BASE="http://127.0.0.1:9999" \
+    SECRETDROP_OIDC_ISSUER="$ORIGEN_IDP/application/o/secretdrop/" \
+    SECRETDROP_OIDC_INTERNAL_BASE="$ORIGEN_IDP" \
     SECRETDROP_ENROLL_URL="https://idp.example.invalid/if/flow/enroll-secretdrop/" \
     $LANZAR >"$LOG" 2>&1 &
   servidor=$!
@@ -178,7 +158,7 @@ fallo=0
 for suite in "${SUITES[@]}"; do
   rm -rf "$ALMACEN"
   mkdir -p "$ALMACEN"
-  arrancar || { fallo=1; continue; }
+  arrancar || { fallo=1; parar; parar_idp; break; }
   printf "%-10s " "$suite"
   salida=$(node "scripts/test-$suite.mjs" 2>&1)
   estado=$?
@@ -197,8 +177,6 @@ for suite in "${SUITES[@]}"; do
   parar
 done
 
-rm -f "$LOG"
-rm -rf "$RAIZ_PRUEBAS"
 if [ $fallo -ne 0 ]; then
   echo
   echo "HAY FALLOS"

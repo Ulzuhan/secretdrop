@@ -1,6 +1,9 @@
 # Contratos: qué tiene que cumplir otra implementación para ser este servicio
 
-Escrito el 06-09-2026 para el port del backend a Go. Lo que manda son las suites
+Escrito el 06-09-2026 para el port; actualizado el 08-09-2026 tras retirar el
+backend Node del árbol activo. Go es la única implementación mantenida. Las
+referencias históricas a funciones de Next/Node explican el origen del contrato,
+no rutas de código vigentes. Lo que manda son las suites
 —`scripts/test-contratos.mjs` y las que ya había—; esto explica **dónde una
 reescritura se desvía sin que nadie lo note**.
 
@@ -15,7 +18,7 @@ SECRETDROP_TEST_BUILD_STAMP="./secretdrop" \
 ```
 
 `SECRETDROP_TEST_LAUNCH` es la orden que levanta el servidor; por omisión el
-artefacto standalone de Next. `SECRETDROP_TEST_BUILD_STAMP` es el fichero cuya
+binario Go `./secretdrop`. `SECRETDROP_TEST_BUILD_STAMP` es el fichero cuya
 fecha delata un build viejo; si no existe, esa comprobación se salta avisando.
 Todo lo demás —puerto, almacén, variables `SECRETDROP_*`, proveedor de
 mentira— se mantiene igual a propósito: **el contrato es el entorno y el HTTP,
@@ -40,7 +43,8 @@ sembrados antes de arrancar, ese primer listado devolvía **1606 de 2000**. Con
 enlaces van por id y leen disco— pero a alguien podían faltarle secretos de su
 lista justo después de un despliegue, y aparecer minutos después.
 
-Ahora la promesa se guarda y el listado la espera. `scripts/test-reinicio.sh` es
+El arreglo de Node guardaba la promesa y el listado la esperaba. En Go,
+`Store.Hydrate()` reconstruye el índice antes de aceptar peticiones. `scripts/test-reinicio.sh` es
 la regresión: siembra propios, ajenos y sin dueño **antes** de que exista el
 servidor, hace que la primera petición sea el listado, y después crea por la API,
 para el servidor y lo vuelve a arrancar con el mismo almacén.
@@ -175,14 +179,14 @@ no un `POST` a `/api/auth/logout`. La primera versión hacía el POST a mano tra
 un clic con `.catch(() => {})` que se tragaba el fallo: probaba la ruta, no el
 logout.
 
-**El pie es un componente de servidor, y eso no sobrevive al port.** Lee
+**El pie era un componente de servidor en Next.** Leía
 `KAICORP_FOOTER_LINKS` él mismo, y en Next lo renderiza el servidor. Compilado
 para el navegador no hay entorno: vite sustituye `process.env` por `{}`, así que
 la bandera quedaba siempre apagada y los enlaces al resto de servicios
 desaparecían **sin que fallara nada**. La variable está puesta en producción.
 El componente viene GENERADO del repo del tema y se comparte con los otros
 seis servicios, así que no se le toca la lógica: la decisión la toma ahora el
-servidor y baja como `data-footer-links`, y `define` apunta ahí la expresión.
+servidor y baja como `data-footer-links`; React consume ese atributo.
 Es el único hallazgo de esta tanda que no da la cara solo, y por eso tiene
 comprobación propia en la suite.
 
@@ -229,10 +233,12 @@ escribiera.
 Node de la rama, que tiene arreglos que esa imagen no lleva:
 
 ```bash
-SECRETDROP_COMPAT_NODE="bash scripts/lanzar-imagen.sh" \
-SECRETDROP_TEST_IMAGE="ghcr.io/ulzuhan/secretdrop:0.7.3@sha256:4103ac55…" \
-SECRETDROP_COMPAT_GO=./secretdrop npm run test:compatibilidad
+npm run build
+npm run test:compatibilidad
 ```
+
+El valor predeterminado fija `ghcr.io/ulzuhan/secretdrop:0.7.3@sha256:4103ac55664ce49d81bf7b38c6cccbee47d06f7e339ed477398c4be1b7065e2d`.
+No compila Node desde el repositorio.
 
 En ese modo el lanzador monta el almacén del anfitrión dentro del contenedor
 —es lo que permite que las dos se turnen sobre el MISMO directorio— y corre con
@@ -243,8 +249,11 @@ producción se verifica aparte.
 Eso es lo que hace segura la vuelta atrás. Un rollback que resucitara secretos
 ya entregados sería peor que no poder volver.
 
-## Lo que esta entrega no hace
+## Alcance de la limpieza del 08-09-2026
 
-No mide, no compara Node con Go, no toca producción y no decide si el índice se
-reconstruye o si la cuota se corrige. Fija el punto de partida para poder
-responder esas preguntas con algo delante.
+Se retiran Next, el backend Node, su Dockerfile y la interfaz duplicada. Se
+conservan los contratos HTTP, el cifrado, el formato del almacén y la
+compatibilidad contra la imagen histórica fijada por digest. Las regresiones
+unitarias del backend pasan a Go; las suites HTTP y de navegador siguen vivas.
+No cambia la cuota, no hay migración de datos ni se publica o despliega esta
+limpieza. Node se usa sólo para construir React y ejecutar herramientas.
