@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-09-11
 
 - Rebuild the interface from scratch: a new design system (hand-written CSS, self-hosted Inter, Instrument Serif and JetBrains Mono), a landing page with an animated secret lifecycle, a two-column workspace with live status of active secrets, and a viewer with distinct burned, expired, missing-key and error endings.
 - Drop Tailwind and PostCSS; the Docker build no longer copies a PostCSS config.
