@@ -1,0 +1,487 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Herramienta: crear secretos y ver los que siguen vivos.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.workspace {
+  padding-block: clamp(2rem, 5vw, 3.75rem) clamp(3rem, 6vw, 5rem);
+}
+
+.workspace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.workspace-head > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.workspace-title {
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+}
+
+.workspace-stats {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.workspace-grid {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 1fr);
+  }
+}
+
+/* ── Compositor ── */
+.composer,
+.result {
+  padding: clamp(1.25rem, 3vw, 1.9rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.composer-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+}
+
+.composer-head h2 {
+  white-space: nowrap;
+}
+
+.composer-head h2,
+.vault-head h2 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.secret-box {
+  position: relative;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-strong);
+  background: var(--bg-0);
+  box-shadow: 0 1px 0 oklch(100% 0 0 / 3%) inset;
+  transition: border-color var(--dur), box-shadow var(--dur);
+}
+
+.secret-box:focus-within {
+  border-color: var(--ember-line);
+  box-shadow:
+    0 1px 0 oklch(100% 0 0 / 3%) inset,
+    0 0 0 4px var(--ember-soft);
+}
+
+.secret-box textarea {
+  display: block;
+  width: 100%;
+  min-height: 11rem;
+  max-height: 60vh;
+  padding: 1rem 1.1rem;
+  resize: vertical;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: 400 0.9rem/1.6 var(--font-mono);
+  color: var(--ink-1);
+  caret-color: var(--ember);
+  tab-size: 2;
+}
+
+.secret-box textarea::placeholder {
+  color: var(--ink-4);
+}
+
+.secret-box textarea[disabled] {
+  color: transparent;
+  text-shadow: 0 0 0 var(--ink-4);
+}
+
+/* La capa que «cifra» el texto ante los ojos mientras se envía. */
+.secret-scramble {
+  position: absolute;
+  inset: 0 0 2.5rem;
+  padding: 1rem 1.1rem;
+  overflow: hidden;
+  font: 400 0.9rem/1.6 var(--font-mono);
+  color: var(--mint);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, black 75%, transparent);
+}
+
+.secret-box-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.9rem 0.55rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-4);
+  font: 500 0.72rem/1 var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.secret-box-foot .over {
+  color: var(--danger);
+}
+
+.composer-options {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 40rem) {
+  .composer-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.composer-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.95rem;
+  border-radius: var(--r);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+
+.composer-summary svg {
+  flex: none;
+  color: var(--ember);
+}
+
+.composer-summary strong {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+.composer-submit {
+  margin-top: 0.25rem;
+}
+
+.composer-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.composer-note svg {
+  color: var(--mint);
+}
+
+/* ── Resultado ── */
+.result {
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+.result-head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.result-head h2 {
+  font-size: clamp(1.4rem, 2.6vw, 1.8rem);
+}
+
+.result-head p {
+  margin-top: 0.35rem;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.share-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.share-field {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 14px;
+  border: 1px solid var(--mint-line);
+  background: var(--bg-0);
+  box-shadow: 0 0 0 4px var(--mint-soft);
+}
+
+.share-field input {
+  flex: 1;
+  min-width: 0;
+  height: 2.75rem;
+  padding: 0 0.8rem;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: 500 0.85rem/1 var(--font-mono);
+  color: var(--ink-1);
+  text-overflow: ellipsis;
+}
+
+.share-field .btn {
+  flex: none;
+}
+
+@media (max-width: 30rem) {
+  .share-field {
+    flex-direction: column;
+  }
+}
+
+.share-anatomy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  color: var(--ink-3);
+  font-size: 0.78rem;
+}
+
+.share-anatomy span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.share-anatomy code {
+  color: var(--ink-1);
+  font-size: 0.75rem;
+}
+
+.share-anatomy .key {
+  color: var(--ember);
+}
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+/* ── Los secretos vivos ── */
+.vault {
+  padding: clamp(1.1rem, 2.5vw, 1.4rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 64rem) {
+  .vault {
+    position: sticky;
+    top: 4.75rem;
+  }
+}
+
+.vault-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.vault-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--ink-2);
+  font: 600 0.72rem/1 var(--font-mono);
+}
+
+.vault-head .btn {
+  margin-left: auto;
+}
+
+.vault-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vault-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 0.95rem 0.95rem;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--bg-0);
+  transition: border-color var(--dur), background-color var(--dur);
+}
+
+.vault-item:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-2);
+}
+
+.vault-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.vault-id {
+  font: 500 0.8rem/1 var(--font-mono);
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-id span {
+  color: var(--ink-4);
+}
+
+.vault-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.6rem;
+  color: var(--ink-3);
+  font-size: 0.78rem;
+}
+
+.vault-meta strong {
+  color: var(--ink-2);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.vault-bar {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+
+.vault-bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  transform: scaleX(var(--p, 0));
+  background: linear-gradient(90deg, var(--mint), var(--ember));
+  transition: transform 600ms var(--ease-out);
+}
+
+.vault-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2rem 1rem 2.25rem;
+  text-align: center;
+  border-radius: var(--r);
+  border: 1px dashed var(--line-strong);
+}
+
+.vault-empty .glyph {
+  margin-bottom: 0.65rem;
+}
+
+.vault-empty strong {
+  font-weight: 600;
+}
+
+.vault-empty p {
+  color: var(--ink-3);
+  font-size: 0.85rem;
+  max-width: 26ch;
+}
+
+.vault-note {
+  display: flex;
+  gap: 0.5rem;
+  color: var(--ink-4);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.vault-note svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+/* ── Garantías ── */
+.assurances {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 40rem) {
+  .assurances {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .assurances {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.assurance {
+  display: flex;
+  gap: 0.8rem;
+  padding: 0.95rem 1rem;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: oklch(100% 0 0 / 1.5%);
+}
+
+.assurance svg {
+  flex: none;
+  color: var(--mint);
+  margin-top: 0.1rem;
+}
+
+.assurance strong {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.assurance span {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink-3);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}

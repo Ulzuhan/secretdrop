@@ -301,9 +301,11 @@ func (s *Server) documento(w http.ResponseWriter, r *http.Request, d datos) {
 // html/template y no concatenación: escapa por contexto, así que ni una
 // variable de entorno rara ni un id pueden salirse de su atributo.
 var plantilla = template.Must(template.New("doc").Parse(
-	`<!doctype html><html lang="en" class="h-full antialiased"><head>
+	`<!doctype html><html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0c11">
 <title>{{.Titulo}}</title>
 <meta name="description" content="{{.Descripcion}}">
 {{if .NoIndex}}<meta name="robots" content="noindex, nofollow">{{end}}
@@ -321,7 +323,8 @@ var plantilla = template.Must(template.New("doc").Parse(
 {{end}}<meta name="twitter:card" content="summary_large_image">
 {{range .CSS}}<link rel="stylesheet" href="{{.}}">
 {{end}}</head>
-<body class="min-h-full flex flex-col bg-background text-foreground">
+<body>
+<noscript><p style="margin:2rem;font:16px system-ui,sans-serif;color:#e6e8ef">SecretDrop encrypts and decrypts in your browser, so it needs JavaScript enabled.</p></noscript>
 <div id="app" data-page="{{.Pagina}}"{{if .Email}} data-email="{{.Email}}"{{end}}{{if .SecretID}} data-secret-id="{{.SecretID}}"{{end}}{{if .Alta}} data-enroll-url="{{.Alta}}"{{end}}{{if .CuentaURL}} data-account-url="{{.CuentaURL}}"{{end}}{{if .Footer}} data-footer-links="on"{{end}}></div>
 {{if .JS}}<script type="module" nonce="{{.Nonce}}" src="{{.JS}}"></script>{{end}}
 </body></html>

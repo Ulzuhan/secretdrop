@@ -5,9 +5,6 @@ import react from "@vitejs/plugin-react";
 
 // Go serves the HTML shell and routes; Vite builds only browser assets.
 export default defineConfig({
-  define: {
-    "process.env.KAICORP_FOOTER_LINKS": "document.getElementById('app')?.dataset.footerLinks",
-  },
   publicDir: "public",
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   plugins: [react(), {
@@ -20,6 +17,9 @@ export default defineConfig({
     outDir: "internal/web/dist",
     emptyOutDir: true,
     manifest: true,
+    // Self-hosted fonts are referenced from CSS and must stay separate files:
+    // the CSP allows `font-src 'self'` and nothing inline.
+    assetsInlineLimit: 0,
     rollupOptions: { input: "src/main.tsx" },
   },
 });
