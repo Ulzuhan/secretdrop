@@ -1,41 +1,18 @@
 /**
- * El punto de entrada. Lo que decide qué se pinta lo pone el servidor en el
- * nodo raíz: si hay sesión, quién es, y qué pantalla toca.
- *
- * El servidor manda porque es quien tiene la cookie. Que el navegador dedujera
- * «hay sesión» por su cuenta sería inventarse una respuesta que sólo el
- * servidor puede dar.
+ * El punto de entrada. Qué se pinta lo decide el servidor en el nodo raíz: si
+ * hay sesión, quién es y qué pantalla toca. Aquí sólo se lee y se monta.
  */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { KaiCorpHeader } from "./components/kaicorp-header";
-import { KaiCorpFooter } from "./components/kaicorp-footer";
-import { KaiCorpAccountMenu } from "./components/kaicorp-account-menu";
-import { Landing } from "./components/landing";
-import { Tool } from "./screens/tool";
-import ViewSecretPage from "./screens/viewer";
-import "./styles/globals.css";
+import { App } from "./app";
+import { readContext } from "./lib/context";
+import "./styles/index.css";
 
-const raiz = document.getElementById("app");
-if (!raiz) throw new Error("falta el nodo raíz");
+const root = document.getElementById("app");
+if (!root) throw new Error("missing #app root");
 
-const pantalla = raiz.dataset.page ?? "landing";
-const email = raiz.dataset.email || "";
-const alta = raiz.dataset.enrollUrl || null;
-const cuenta = raiz.dataset.accountUrl || null;
-
-function Pagina() {
-  if (pantalla === "viewer") return <ViewSecretPage />;
-  if (pantalla === "tool") return <Tool />;
-  return <Landing enrollUrl={alta} />;
-}
-
-createRoot(raiz).render(
+createRoot(root).render(
   <StrictMode>
-    <KaiCorpHeader app="SecretDrop">
-      {email ? <KaiCorpAccountMenu email={email} accountUrl={cuenta} /> : null}
-    </KaiCorpHeader>
-    <Pagina />
-    <KaiCorpFooter current="secretdrop" />
-  </StrictMode>
+    <App ctx={readContext(root)} />
+  </StrictMode>,
 );

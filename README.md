@@ -6,7 +6,7 @@ Share a secret once. Encrypted in the browser, with a Go backend and a React int
 [![Container image](https://github.com/Ulzuhan/secretdrop/actions/workflows/docker.yml/badge.svg)](https://github.com/Ulzuhan/secretdrop/pkgs/container/secretdrop)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![Secret creation and the burned-link screen](assets/screenshot.jpg)
+![The workspace right after creating a secret: the encrypted link, ready to share](assets/screenshot.jpg)
 
 Passwords, API keys and one-off credentials do not belong in chat history. SecretDrop turns them into a link with an expiry and a view budget — one view by default. Creating and listing secrets requires an OIDC account; recipients only need the link.
 
@@ -24,7 +24,7 @@ There are no third-party analytics or database services. Encryption protects sto
 | Part | Implementation |
 |---|---|
 | HTTP, OIDC and storage | Go standard library, `cmd/secretdrop` and `internal/` |
-| Interface | React 19 + TypeScript in `src/`, built with Vite and Tailwind |
+| Interface | React 19 + TypeScript in `src/`, built with Vite; hand-written CSS and self-hosted fonts |
 | Encryption | One shared `src/lib/crypto.ts`, executed in the browser |
 | Production | One Go binary with embedded assets; **no Node.js runtime** |
 | Build and tests | Node.js/npm for frontend tooling and test fixtures |

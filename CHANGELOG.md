@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Rebuild the interface from scratch: a new design system (hand-written CSS, self-hosted Inter, Instrument Serif and JetBrains Mono), a landing page with an animated secret lifecycle, a two-column workspace with live status of active secrets, and a viewer with distinct burned, expired, missing-key and error endings.
+- Drop Tailwind and PostCSS; the Docker build no longer copies a PostCSS config.
+- The share link is always shown in a selectable field; copying is a shortcut, and a denied clipboard says so.
 - Retire the legacy Next.js backend and Dockerfile; React + Go is the only maintained application.
 - Consolidate the active frontend into src/, preserving browser encryption unchanged.
 - Replace Next navigation shims with ordinary links and server-provided viewer IDs.

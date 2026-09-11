@@ -1,0 +1,72 @@
+/*
+ * Los tokens de SecretDrop. Una sola paleta, oscura a propósito: es un sitio
+ * donde se pegan contraseñas, y la penumbra es parte del mensaje.
+ *
+ * Dos acentos con significado, no de adorno:
+ *   · ember  — lo que arde: la acción principal y el final del secreto.
+ *   · mint   — lo cifrado, lo que está a salvo.
+ * Todo lo demás es tinta sobre tinta, en oklch para que los grises no tiren a
+ * marrón ni a azul según el monitor.
+ */
+:root {
+  color-scheme: dark;
+
+  /* ── Tinta: superficies de más honda a más cercana ── */
+  --bg-0: oklch(12% 0.012 268);
+  --bg-1: oklch(15% 0.014 268);
+  --bg-2: oklch(18.5% 0.016 268);
+  --bg-3: oklch(23% 0.018 268);
+  --bg-glass: oklch(12% 0.012 268 / 72%);
+
+  --line: oklch(100% 0 0 / 7%);
+  --line-strong: oklch(100% 0 0 / 13%);
+  --line-glow: oklch(100% 0 0 / 22%);
+
+  --ink-1: oklch(96% 0.006 268);
+  --ink-2: oklch(78% 0.014 268);
+  --ink-3: oklch(60% 0.018 268);
+  --ink-4: oklch(44% 0.02 268);
+
+  /* ── Ember ── */
+  --ember: oklch(80% 0.155 64);
+  --ember-2: oklch(71% 0.185 40);
+  --ember-ink: oklch(20% 0.05 50);
+  --ember-soft: oklch(80% 0.155 64 / 12%);
+  --ember-line: oklch(80% 0.155 64 / 30%);
+  --ember-grad: linear-gradient(135deg, var(--ember) 0%, var(--ember-2) 100%);
+  --ember-glow: oklch(76% 0.17 52 / 45%);
+
+  /* ── Mint ── */
+  --mint: oklch(85% 0.13 168);
+  --mint-soft: oklch(85% 0.13 168 / 11%);
+  --mint-line: oklch(85% 0.13 168 / 28%);
+
+  /* ── Semánticos ── */
+  --danger: oklch(72% 0.18 24);
+  --danger-soft: oklch(72% 0.18 24 / 12%);
+  --danger-line: oklch(72% 0.18 24 / 30%);
+  --warn: var(--ember);
+
+  /* ── Tipografía ── */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ── Forma ── */
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+
+  --shadow-1: 0 1px 2px oklch(0% 0 0 / 30%), 0 8px 24px -12px oklch(0% 0 0 / 50%);
+  --shadow-2: 0 1px 0 oklch(100% 0 0 / 4%) inset, 0 24px 60px -24px oklch(0% 0 0 / 70%);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur: 200ms;
+  --dur-slow: 480ms;
+
+  --container: 74rem;
+  --container-narrow: 40rem;
+  --gutter: clamp(1.1rem, 4vw, 2rem);
+}

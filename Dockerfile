@@ -8,10 +8,9 @@ COPY package*.json ./
 # `npm ci` y no `--omit=dev`: vite y su cadena son dependencias de desarrollo, y
 # sin ellas no hay nada que compilar.
 RUN npm ci
-# postcss.config.mjs NO es opcional: es quien mete Tailwind. Sin él vite emite
-# el CSS fuente sin una sola utilidad generada, la página sale sin estilos y
-# nada falla — el build pasa, el asset se sirve con su MIME y pesa parecido.
-COPY vite.config.mts postcss.config.mjs tsconfig.json ./
+# La interfaz es CSS propio y fuentes autoalojadas (salen de node_modules): no
+# hay PostCSS ni Tailwind que configurar. `npm ci` ya ha traído las fuentes.
+COPY vite.config.mts tsconfig.json ./
 COPY src ./src
 COPY public ./public
 RUN npx vite build

@@ -1,0 +1,229 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Visor: quien recibe el enlace. Sin cuenta, sin cromado que estorbe.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.viewer {
+  display: grid;
+  align-content: center;
+  padding-block: clamp(2.5rem, 8vh, 6rem);
+  min-height: calc(100svh - 3.75rem - 4.5rem);
+}
+
+.reveal {
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(1.4rem, 4vw, 2.25rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+.reveal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reveal-head .pill:last-child {
+  margin-left: auto;
+}
+
+.reveal-title {
+  font-size: clamp(2rem, 5vw, 2.9rem);
+}
+
+.reveal-sub {
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  margin-top: -0.5rem;
+}
+
+.secret-out {
+  position: relative;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--mint-line);
+  background: var(--bg-0);
+  box-shadow: 0 0 0 4px var(--mint-soft);
+}
+
+.secret-out pre {
+  margin: 0;
+  max-height: 50vh;
+  overflow: auto;
+  padding: 1.1rem 1.2rem;
+  font: 400 0.9375rem/1.6 var(--font-mono);
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.secret-out[data-masked="true"] pre {
+  filter: blur(7px);
+  user-select: none;
+}
+
+.secret-out-tools {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.reveal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.reveal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+/* Cargando */
+.viewer-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+.viewer-loading .lock {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 18px;
+  border: 1px solid var(--mint-line);
+  background: var(--mint-soft);
+  color: var(--mint);
+}
+
+.viewer-loading .lock::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 22px;
+  border: 1px solid var(--mint-line);
+  animation: ripple 1.6s var(--ease-out) infinite;
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.viewer-loading small {
+  color: var(--ink-4);
+  font: 500 0.72rem/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Tarjetas de final: quemado, caducado, sin clave, error */
+.ending {
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+  padding: clamp(1.6rem, 4vw, 2.5rem);
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+.ending h1 {
+  font-size: clamp(2.1rem, 5vw, 3rem);
+}
+
+.ending p {
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  max-width: 38rem;
+  text-wrap: pretty;
+}
+
+.ending code {
+  padding: 0.1em 0.4em;
+  border-radius: 6px;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  font-size: 0.85em;
+  color: var(--ink-1);
+}
+
+.ending code .key {
+  color: var(--ember);
+}
+
+.ending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+/* Las cenizas: el rescoldo que queda cuando ya se ha leído. */
+.ember-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.ember-field i {
+  position: absolute;
+  bottom: -6px;
+  left: var(--x);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: var(--ember);
+  box-shadow: 0 0 10px var(--ember-glow);
+  opacity: 0;
+  animation: ember-rise var(--t) linear infinite;
+  animation-delay: var(--d);
+}
+
+@keyframes ember-rise {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-16rem) translateX(var(--dx));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ember-field {
+    display: none;
+  }
+}
