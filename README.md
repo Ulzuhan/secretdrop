@@ -29,7 +29,7 @@ There are no third-party analytics or database services. Encryption protects sto
 | Production | One Go binary with embedded assets; **no Node.js runtime** |
 | Build and tests | Node.js/npm for frontend tooling and test fixtures |
 
-The Next.js backend is no longer maintained in this tree. Historical source remains in Git; the pinned 0.7.3 image remains a compatibility fixture, not a second implementation to build.
+The Next.js backend is no longer maintained in this tree. Historical source remains in Git; the pinned 0.7.3 image remains a compatibility fixture, not a second implementation to build. [How the port happened](docs/MIGRACION-GO-0.8.0.md) records what it delivered and what it proved.
 
 ## Run locally
 
@@ -64,6 +64,11 @@ docker compose up -d --build
 
 Compose binds to `127.0.0.1:3461`. Put a trusted TLS proxy in front and run **one instance per store**: locks, quotas and rate limits are process-local. The image runs as UID 10001 with a persistent `/data` volume. See [deployment and rollback](DEPLOYMENT.md) before exposing it.
 
+On `SIGTERM` the process stops accepting and drains in-flight requests for up to
+15 s before exiting. Give it that margin — the bundled Compose file declares
+`stop_grace_period: 20s`, because Docker's default kills at 10 s — or a delivery
+can be cut off mid-response after the secret has already been spent.
+
 ## Configuration
 
 | Variable | Purpose / default |
@@ -91,6 +96,7 @@ Compose binds to `127.0.0.1:3461`. Put a trusted TLS proxy in front and run **on
 - The last view burns before delivery. A failed response can therefore spend a view; delivery is not an acknowledgement protocol.
 - Listings contain only the account's live metadata, never ciphertext or another account's identifiers. The index is rebuilt before serving requests.
 - OIDC back-channel logout persists revocations. Removing a provider permission without a valid notification does not immediately invalidate an issued cookie; its expiry remains the fallback bound.
+- A restart does not truncate a delivery: the server drains in-flight requests before exiting, provided the runtime allows the stop budget above.
 - Never restore old payloads or revocation files to roll back code: this can resurrect consumed secrets or revoked sessions.
 
 [CONTRATOS.md](CONTRATOS.md) records the compatibility and security contracts.
