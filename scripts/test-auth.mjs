@@ -137,7 +137,7 @@ check("al salir se borra la cookie", borrada, true);
 /**
  * La portada, y de dónde sale el enlace de alta.
  *
- * Estaba escrito a fuego en el componente, apuntando al Authentik de quien escribió
+ * Estaba escrito a fuego en el componente, apuntando al proveedor de quien escribió
  * esto — en un repositorio con licencia MIT, así que cualquiera que lo desplegara le
  * ponía a sus visitantes un botón de alta hacia el proveedor de un desconocido. Ahora
  * llega por `SECRETDROP_ENROLL_URL`, y esto es lo que impide que vuelva a colarse una constante.

@@ -180,7 +180,7 @@ func (s *Server) salud(w http.ResponseWriter, r *http.Request) {
 // El enlace de alta sale del ENTORNO y de ninguna constante. Estuvo escrito a
 // fuego apuntando al proveedor de quien escribió esto, en un repositorio con
 // licencia MIT: cualquiera que lo desplegara le ponía a sus visitantes un botón
-// de alta hacia el Authentik de un desconocido. Sin variable no hay botón.
+// de alta hacia el proveedor de un desconocido. Sin variable no hay botón.
 func (s *Server) portada(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		escribirJSON(w, http.StatusNotFound, map[string]any{"error": "Not found"})

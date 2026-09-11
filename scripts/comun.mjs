@@ -1,7 +1,7 @@
 /**
  * Lo que comparten las suites HTTP.
  *
- * Esta aplicación no tiene login local: la identidad la lleva Authentik entera.
+ * Esta aplicación no tiene login local: la identidad la lleva entera el proveedor OIDC.
  * Así que las pruebas acuñan la cookie de sesión con el mismo secreto que el
  * servidor de pruebas, que es la única forma de ejercitar lo que hay detrás sin
  * levantar un proveedor de identidad para cada tirada.
