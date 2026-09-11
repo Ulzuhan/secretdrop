@@ -10,6 +10,20 @@ SecretDrop debe ejecutarse como **una sola instancia** detrás de un proxy TLS. 
 
 El contenedor corre sin root, sin capacidades, con raíz de solo lectura y un volumen persistente en `/data`. Los límites predeterminados son 100 MiB y 1000 registros (incluidas las lápidas retenidas); ajústalos con `SECRETDROP_MAX_STORE_BYTES` y `SECRETDROP_MAX_ACTIVE_SECRETS`.
 
+## Parada ordenada
+
+Al recibir `SIGTERM` el proceso deja de admitir conexiones y **espera** hasta
+15 s a que terminen las peticiones en vuelo; sólo entonces sale. Desde 0.9.1:
+antes ese drenaje se lanzaba sin esperarlo y el proceso podía salir con una
+respuesta a medio escribir. En este servicio eso no es cosmético — la entrega de
+un secreto de un solo uso lo gasta, y cortarla deja a quien abrió el enlace sin
+lo suyo y sin repetición posible.
+
+Quien orquesta tiene que conceder ese margen: Docker mata a los 10 s por
+defecto, así que el compose de este repositorio declara `stop_grace_period: 20s`.
+Si despliegas con otra configuración, súbelo ahí también; si no, el drenaje se
+corta igual por fuera.
+
 ## Datos, copias y recuperación
 
 No hagas copias de seguridad de `/data`: una copia puede reintroducir criptogramas que el servicio ya prometió quemar. El último consumo escribe primero una lápida sin criptograma y la retiene siete días, de modo que una caída no revive el secreto. Los secretos no consumidos caducados se eliminan al acceder, al iniciar el proceso o mediante la limpieza autenticada. Supervisa espacio, respuestas 429/507/503 y reinicios.

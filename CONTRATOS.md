@@ -130,7 +130,8 @@ compilados con vite y embebidos en el binario con `go:embed`.
 
 La otra mitad se demuestra con un navegador de verdad, y ésa es la suite
 `navegador`: Chromium sobre HTTPS con certificado propio, contra el proveedor
-sintético que firma. Entra, crea, comparte, abre el enlace en **otro contexto
+sintético que completa la entrada —el que firma avisos vive en las suites de
+back-channel y compatibilidad, no aquí—. Entra, crea, comparte, abre el enlace en **otro contexto
 de navegador sin cookies**, descifra, comprueba que sólo se entrega una vez,
 que un enlace sin la clave del fragmento no lo gasta, y sale **por su botón**.
 Vigila además que la cookie de sesión sea `Secure`, `HttpOnly` y `SameSite=Lax`,

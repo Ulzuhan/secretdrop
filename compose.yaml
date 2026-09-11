@@ -3,6 +3,9 @@ services:
     build: .
     restart: unless-stopped
     init: true
+    # El drenaje al recibir SIGTERM se da 15 s para terminar lo que está en
+    # vuelo; con los 10 s que da Docker por defecto, el SIGKILL llegaría antes.
+    stop_grace_period: 20s
     ports:
       - "127.0.0.1:3461:3461"
     env_file:

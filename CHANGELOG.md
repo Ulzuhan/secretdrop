@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.1 — 2026-09-11
+
+- Wait for the shutdown drain before exiting. `Shutdown` ran in a goroutine while `main` returned as soon as the listener stopped accepting, so `SIGTERM` could kill the process with a response half written — and a one-view delivery that is cut short has already been spent.
+- Declare `stop_grace_period: 20s` in the example Compose file: Docker's default 10 s kills the process before the 15 s drain can finish. Document the requirement for other runtimes.
+- Add deterministic regressions for the drain and for its deadline.
+- Fold the 0.8.0 migration notes into `docs/` as history, with each pending item resolved where it was actually closed.
+- Correct the browser-suite description in CONTRATOS.md: its synthetic provider completes sign-in; signed back-channel notices are covered by the back-channel and compatibility suites.
+
+No storage-format, API or production-configuration change.
+
 ## 0.9.0 — 2026-09-11
 
 - Rebuild the interface from scratch: a new design system (hand-written CSS, self-hosted Inter, Instrument Serif and JetBrains Mono), a landing page with an animated secret lifecycle, a two-column workspace with live status of active secrets, and a viewer with distinct burned, expired, missing-key and error endings.

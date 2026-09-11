@@ -64,6 +64,12 @@ func sonda() int {
 	return 0
 }
 
+// plazoDrenaje: lo que se concede a las peticiones en vuelo cuando llega la
+// señal de parada. El runtime tiene que dar al menos este margen antes del
+// SIGKILL —en compose, `stop_grace_period`—; si da menos, el drenaje se corta
+// igual por fuera.
+const plazoDrenaje = 15 * time.Second
+
 func main() {
 	if len(os.Args) > 1 {
 		if os.Args[1] != "health" || len(os.Args) > 2 {
@@ -129,15 +135,38 @@ func main() {
 	// dejar constancia.
 	ctx, parar := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer parar()
-	go func() {
-		<-ctx.Done()
-		cierre, cancelar := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancelar()
-		_ = http1.Shutdown(cierre)
-	}()
 
-	log.Printf("secretdrop escuchando en %s, almacén %s", direccion, dir)
-	if err := http1.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	escucha, err := net.Listen("tcp", direccion)
+	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("secretdrop escuchando en %s, almacén %s", direccion, dir)
+	if err := servir(ctx, http1, escucha, plazoDrenaje); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// servir atiende hasta que ctx se cancela y entonces drena, esperando a que el
+// drenaje termine. Eso último es lo que faltaba hasta la 0.9.0: `Shutdown`
+// corría en una goroutine y `main` volvía en cuanto `ListenAndServe` devolvía
+// `ErrServerClosed` —al dejar de admitir, no al terminar de drenar—, así que el
+// proceso podía morir con una respuesta a medio escribir. Aquí eso no es un
+// detalle: la entrega de un secreto de un solo uso lo gasta, y cortarla deja a
+// quien abrió el enlace sin lo suyo y sin forma de repetirlo.
+func servir(ctx context.Context, srv *http.Server, escucha net.Listener, plazo time.Duration) error {
+	drenado := make(chan struct{})
+	go func() {
+		defer close(drenado)
+		<-ctx.Done()
+		cierre, cancelar := context.WithTimeout(context.Background(), plazo)
+		defer cancelar()
+		_ = srv.Shutdown(cierre)
+	}()
+
+	if err := srv.Serve(escucha); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	<-drenado
+	return nil
 }
