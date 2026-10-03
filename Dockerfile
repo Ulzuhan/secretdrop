@@ -1,6 +1,6 @@
 # Build React with Node; ship only the Go binary and its embedded assets.
 
-FROM node:22-alpine AS assets
+FROM node:24-alpine AS assets
 WORKDIR /app
 # Browser binaries are installed only for tests, never for the image build.
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
