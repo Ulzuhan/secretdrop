@@ -30,4 +30,6 @@ The HTTP fixture defaults to port 3992 and IdP port 9999; override `PORT` and `P
 
 Preserve browser-only encryption, durable consumption, ownership filtering and revocations across restarts. Add deterministic regressions for changes to these contracts. Use fake identities and isolated stores, not live secrets. The legacy image compatibility test checks data format and intentionally uses the caller's UID for its shared temporary store; it is not the production security profile.
 
-Publishing is separate from testing: pushing to `main` triggers the image workflow. Do not tag, publish, deploy or edit infrastructure as part of an unauthorised cleanup. See [DEPLOYMENT.md](DEPLOYMENT.md) for promotion and rollback.
+CI builds/tests/scans one OCI artifact and checks the exact Go rollback release
+as well as the historical Node fixture. Only an original stable version tag push
+may publish/promote those same bytes; main, PRs and dispatch runs cannot publish. Do not tag, publish, deploy or edit infrastructure as part of an unauthorised cleanup. See [DEPLOYMENT.md](DEPLOYMENT.md) for promotion and rollback.
