@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Node → Go → Node sobre el MISMO almacén, y nunca los dos a la vez.
+# Baseline → candidata Go → mismo baseline sobre el MISMO almacén, y nunca los dos a la vez.
 #
 # Lo que decide si se puede cambiar de implementación y volver. Cada turno para
 # de verdad antes de que empiece el siguiente: dos escritores sobre el mismo
@@ -86,7 +86,7 @@ for _ in $(seq 1 40); do
 done
 
 fallo=0
-arrancar Node "$NODE_LANZAR" || fallo=1
+arrancar "${SECRETDROP_COMPAT_PREVIOUS_LABEL:-Node 0.7.3}" "$NODE_LANZAR" || fallo=1
 [ "$fallo" -eq 0 ] && { node scripts/test-compatibilidad.mjs sembrar-node || fallo=1; }
 parar || fallo=1
 
@@ -96,7 +96,7 @@ echo
 parar || fallo=1
 
 echo
-[ "$fallo" -eq 0 ] && { arrancar "Node (vuelta atrás)" "$NODE_LANZAR" || fallo=1; }
+[ "$fallo" -eq 0 ] && { arrancar "${SECRETDROP_COMPAT_PREVIOUS_LABEL:-Node 0.7.3} (vuelta atrás)" "$NODE_LANZAR" || fallo=1; }
 [ "$fallo" -eq 0 ] && { node scripts/test-compatibilidad.mjs verificar-node || fallo=1; }
 
 [ "$fallo" -ne 0 ] && { echo "--- registro ---"; tail -30 "$LOG"; }

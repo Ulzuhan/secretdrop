@@ -1,0 +1,126 @@
+name: Build and verify one SecretDrop OCI artifact
+description: One build, exact runtime suites, two rollback pairs and unchanged Trivy gate; never publishes
+outputs:
+  digest:
+    description: Root digest of the tested/scanned OCI index
+    value: ${{ steps.build.outputs.digest }}
+  source:
+    description: Exact checked out source revision
+    value: ${{ steps.source.outputs.sha }}
+runs:
+  using: composite
+  steps:
+    - id: source
+      shell: bash
+      run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+    - name: Verify the reviewed exact rollback release
+      id: rollback
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        image=$(python3 scripts/rollback-baseline.py verify)
+        echo "image=$image" >> "$GITHUB_OUTPUT"
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - id: build
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        platforms: linux/amd64
+        outputs: type=oci,dest=${{ runner.temp }}/secretdrop.oci,tar=false
+        tags: secretdrop:release-candidate
+        labels: |
+          org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+          io.kaicorp.secretdrop.store-contract=secretdrop-meta-v1
+          io.kaicorp.secretdrop.rollback-image=${{ steps.rollback.outputs.image }}
+        provenance: mode=max
+        sbom: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        no-cache: ${{ startsWith(github.ref, 'refs/tags/') }}
+    - name: Install OCI copier
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install --no-install-recommends -y skopeo
+    - name: Verify all OCI bytes and load the exact runtime
+      id: runtime
+      shell: bash
+      env:
+        DIGEST: ${{ steps.build.outputs.digest }}
+        SOURCE: ${{ steps.source.outputs.sha }}
+      run: |
+        image_id=$(python3 scripts/oci-release.py load --layout "$RUNNER_TEMP/secretdrop.oci" --digest "$DIGEST" --source "$SOURCE")
+        echo "SECRETDROP_TEST_IMAGE=$image_id" >> "$GITHUB_ENV"
+    - name: Trivy before any registry write
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        input: ${{ runner.temp }}/secretdrop.oci
+        version: v0.75.0
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: '1'
+        scanners: vuln
+      env:
+        TRIVY_TIMEOUT: 20m
+    - name: HTTP suites against the gated runtime ID
+      shell: bash
+      env:
+        SECRETDROP_TEST_LAUNCH: bash scripts/lanzar-imagen.sh
+        SECRETDROP_TEST_BUILD_STAMP: Dockerfile
+      run: ./scripts/run-suites.sh
+    - name: Backchannel against the gated runtime ID
+      shell: bash
+      env:
+        SECRETDROP_TEST_LAUNCH: bash scripts/lanzar-imagen.sh
+      run: bash scripts/test-backchannel.sh
+    - name: Restart and cold store against the gated runtime ID
+      shell: bash
+      env:
+        SECRETDROP_TEST_LAUNCH: bash scripts/lanzar-imagen.sh
+      run: bash scripts/test-reinicio.sh
+    - shell: bash
+      run: npx playwright install --with-deps chromium
+    - name: Browser journey against the gated runtime ID
+      shell: bash
+      env:
+        SECRETDROP_TEST_LAUNCH: bash scripts/lanzar-imagen.sh
+      run: npm run test:navegador
+    - name: Node 0.7.3 regression against the gated image
+      shell: bash
+      env:
+        SECRETDROP_TEST_LAUNCH: bash scripts/lanzar-imagen.sh
+      run: |
+        SECRETDROP_COMPAT_GO="env SECRETDROP_TEST_IMAGE=$SECRETDROP_TEST_IMAGE bash scripts/lanzar-imagen.sh" \
+          SECRETDROP_TEST_IMAGE=ghcr.io/ulzuhan/secretdrop:0.7.3@sha256:4103ac55664ce49d81bf7b38c6cccbee47d06f7e339ed477398c4be1b7065e2d \
+          bash scripts/test-compatibilidad.sh
+    - name: Reviewed Go rollback release against the gated image
+      shell: bash
+      run: bash scripts/test-rollback-imagen.sh
+    - name: Runtime is uid 10001 and has no Node
+      shell: bash
+      run: |
+        docker run --rm --entrypoint sh "$SECRETDROP_TEST_IMAGE" -c '
+          if command -v node || command -v npm || command -v npx; then exit 1; fi
+          id | grep -q "uid=10001"
+        '
+    - name: Archive the verified layout without rebuilding
+      shell: bash
+      env:
+        DIGEST: ${{ steps.build.outputs.digest }}
+        SOURCE: ${{ steps.source.outputs.sha }}
+      run: |
+        python3 scripts/oci-release.py verify --layout "$RUNNER_TEMP/secretdrop.oci" --digest "$DIGEST" --source "$SOURCE"
+        tar -C "$RUNNER_TEMP" -cf "$RUNNER_TEMP/secretdrop-oci.tar" secretdrop.oci
+        printf '%s\n' "$SOURCE" > "$RUNNER_TEMP/secretdrop-oci-source.txt"
+        printf '%s\n' "$DIGEST" > "$RUNNER_TEMP/secretdrop-oci-digest.txt"
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: secretdrop-oci-${{ github.run_id }}
+        path: |
+          ${{ runner.temp }}/secretdrop-oci.tar
+          ${{ runner.temp }}/secretdrop-oci-source.txt
+          ${{ runner.temp }}/secretdrop-oci-digest.txt
+        compression-level: 0
+        retention-days: 7
+        if-no-files-found: error
