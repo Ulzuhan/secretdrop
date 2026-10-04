@@ -30,6 +30,7 @@ export SECRETDROP_SESSION_SECRET="${SECRETDROP_SESSION_SECRET:-secreto-de-prueba
 LOG="$(mktemp)"
 RAIZ_PRUEBAS="$(mktemp -d)"
 export ALMACEN="$RAIZ_PRUEBAS/almacen"
+export SECRETDROP_TEST_ROOT="$RAIZ_PRUEBAS"
 
 # Un señuelo FUERA del almacén, con la fecha vencida.
 #

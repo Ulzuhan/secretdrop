@@ -33,7 +33,21 @@ trap limpiar EXIT INT TERM
 # de seguridad de producción —uid 10001, read_only, cap_drop— se verifica
 # aparte, y no aquí.
 MONTAJE=()
-if [ -n "${SECRETDROP_STORE_DIR:-}" ] && [ -d "${SECRETDROP_STORE_DIR}" ]; then
+if [ -n "${SECRETDROP_TEST_ROOT:-}" ]; then
+  # Only the harness's temporary store and sibling traversal sentinels.
+  ROOT_FIXTURE="$SECRETDROP_TEST_ROOT"
+  [ -d "$ROOT_FIXTURE" ] && [ ! -L "$ROOT_FIXTURE" ] &&
+    [ "${SECRETDROP_STORE_DIR:-}" = "$ROOT_FIXTURE/almacen" ] &&
+    [ -f "$ROOT_FIXTURE/senuelo/meta.json" ] &&
+    [ -f "$ROOT_FIXTURE/senuelovivo/meta.json" ] || exit 2
+  case "$ROOT_FIXTURE" in /tmp/*|"${RUNNER_TEMP:-/tmp}"/*) ;; *) exit 2 ;; esac
+  MONTAJE=(-v "$ROOT_FIXTURE:$ROOT_FIXTURE"
+           -e "SECRETDROP_STORE_DIR=$SECRETDROP_STORE_DIR"
+           --user "$(id -u):$(id -g)")
+  # Prove visibility from the same runtime/mounts before testing traversal.
+  docker run --rm --name "$NOMBRE-fixture" --entrypoint sh "${MONTAJE[@]}" "$IMAGEN" \
+    -c 'test -r "$1/senuelo/meta.json" && test -r "$1/senuelovivo/meta.json" && test -d "$1/almacen"' sh "$ROOT_FIXTURE"
+elif [ -n "${SECRETDROP_STORE_DIR:-}" ] && [ -d "${SECRETDROP_STORE_DIR}" ]; then
   MONTAJE=(-v "${SECRETDROP_STORE_DIR}:${SECRETDROP_STORE_DIR}"
            -e "SECRETDROP_STORE_DIR=${SECRETDROP_STORE_DIR}"
            --user "$(id -u):$(id -g)")
