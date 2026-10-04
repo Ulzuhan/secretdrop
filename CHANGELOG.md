@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.2 — 2026-10-04
+
+- Publish only from version tags, promoting the exact OCI artifact that passed functional, browser, image, rollback and vulnerability checks.
+- Verify signed release provenance against the source, tag and hosted publication run before promotion.
+- Declare the existing store contract and the exact reviewed Go 0.9.1 rollback image; keep the historical Node compatibility regression.
+- Document supervised adoption and image-only pull deployment with current-store rollback.
+
+No storage-format, API, runtime-configuration or data migration change.
+
 ## 0.9.1 — 2026-09-11
 
 - Wait for the shutdown drain before exiting. `Shutdown` ran in a goroutine while `main` returned as soon as the listener stopped accepting, so `SIGTERM` could kill the process with a response half written — and a one-view delivery that is cut short has already been spent.
