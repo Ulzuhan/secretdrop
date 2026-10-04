@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Node → Go → Node sobre el MISMO almacén, y nunca los dos a la vez.
+ * Baseline → candidata Go → mismo baseline sobre el MISMO almacén, y nunca los dos a la vez.
  *
  * Es la prueba que decide si se puede cambiar de implementación y volver: lo
  * que una escribe, la otra lo tiene que entender, y **volver atrás no puede
@@ -93,12 +93,12 @@ if (paso === "verificar-go") {
   check("  sin ver lo de B", listaA.body.secrets?.some((s) => s.id === e.s4), false);
   check(`la revocación de B la escribió ${anterior} y Go la respeta`, (await listar(B)).status, 401);
 
-  // Go escribe: crea uno y gasta otro de los de Node.
+  // La candidata escribe: crea uno y gasta otro del baseline.
   const s5 = (await crear(A, { ttlHours: 2, maxViews: 1 })).body;
-  check("Go crea sobre el almacén de Node", s5?.id?.length, 12);
-  check("  y gasta uno de los de Node", (await consumir(e.s3)).body.burned, true);
+  check("la candidata crea sobre el almacén anterior", s5?.id?.length, 12);
+  check("  y gasta uno del baseline", (await consumir(e.s3)).body.burned, true);
   // Y revoca a otra cuenta, para comprobar el sentido contrario al volver.
-  check("Go revoca a C", await revocar("sub-c"), 200);
+  check("la candidata revoca a C", await revocar("sub-c"), 200);
 
   persisted(s5.id, 0, false);
   persisted(e.s2, 2, true);
@@ -118,14 +118,14 @@ if (paso === "verificar-node") {
   check("y lo entrega", (await consumir(e.s5)).body.burned, true);
 
   // Lo importante de una vuelta atrás: nada de lo gastado vuelve.
-  for (const [nombre, id] of [["el que gastó Node", e.s1], ["el que agotó Go", e.s2], ["el que gastó Go", e.s3]]) {
+  for (const [nombre, id] of [["el que gastó el baseline", e.s1], ["el que agotó la candidata", e.s2], ["el que gastó la candidata", e.s3]]) {
     check(`${nombre} sigue gastado`, (await consumir(id)).status, 410);
   }
   check("y el listado de A queda vacío", (await listar(A)).body.secrets?.length, 0);
 
   // Ni los permisos: las dos revocaciones siguen en pie, la escribiera quien
   // la escribiera.
-  check("la revocación que escribió Node sigue en pie", (await listar(B)).status, 401);
-  check("la revocación que escribió Go también", (await listar(C)).status, 401);
+  check("la revocación que escribió el baseline sigue en pie", (await listar(B)).status, 401);
+  check("la revocación que escribió la candidata también", (await listar(C)).status, 401);
   resumen();
 }

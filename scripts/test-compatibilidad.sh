@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Node → Go → Node sobre el MISMO almacén, y nunca los dos a la vez.
+# Baseline → candidata Go → mismo baseline sobre el MISMO almacén, y nunca los dos a la vez.
 #
 # Lo que decide si se puede cambiar de implementación y volver. Cada turno para
 # de verdad antes de que empiece el siguiente: dos escritores sobre el mismo
