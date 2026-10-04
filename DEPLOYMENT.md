@@ -59,7 +59,7 @@ El binario no lee dotenv por sí solo: Compose carga `.env`; fuera de Compose ex
 
 ## Publicación y promoción
 
-El workflow publica en pushes a `main` y etiquetas de versión. La firma de procedencia y su verificación pertenecen al workflow actual; no convierten en firmadas las imágenes históricas. Antes de promover un digest nuevo, comprueba sus checks, procedencia firmada para el repositorio/workflow/commit/referencia esperados y escaneo. El SBOM de BuildKit es un artefacto distinto, no una firma por sí mismo.
+Sólo un push original de etiqueta estable `vX.Y.Z`, coincidente con `package.json`, puede publicar. `main`, PRs y ejecuciones manuales prueban sin publicar. CI construye un único índice OCI AMD64 con SBOM/procedencia, ejecuta suites sobre su runtime exacto, comprueba ambas parejas de retorno y aplica Trivy antes de cualquier escritura al registro. El publicador descarga y verifica ese artefacto, copia los mismos bytes, firma su digest y verifica repositorio/workflow/source/ref antes de promoverlo. No reconstruye entre pruebas y publicación; rechaza sobrescribir una versión existente con otro digest. La firma de procedencia y su verificación pertenecen al workflow actual; no convierten en firmadas las imágenes históricas. Antes de promover un digest nuevo, comprueba sus checks, procedencia firmada para el repositorio/workflow/commit/referencia esperados y escaneo. El SBOM de BuildKit es un artefacto distinto, no una firma por sí mismo.
 
 Ancla por digest, recrea sólo SecretDrop y nunca mantengas dos escritores sobre `/data`. Verifica salud, portada, login y un ciclo con datos sintéticos autorizado; no consumas secretos reales ajenos para probar. Retirar código antiguo no autoriza ni requiere un despliegue.
 
@@ -74,3 +74,19 @@ ghcr.io/ulzuhan/secretdrop:0.7.3@sha256:4103ac55664ce49d81bf7b38c6cccbee47d06f7e
 La suite alterna esa imagen, Go y esa misma imagen sobre un almacén temporal. Conservarla permite probar formato y revocaciones sin mantener Next en la rama activa. Compatibilidad de datos no significa igualdad de correcciones: 0.7.3 carece de arreglos posteriores, por lo que es una referencia de emergencia, no la versión recomendada.
 
 Para volver a una versión Go anterior, restaura su imagen y recrea sólo el servicio. Si fuese imprescindible volver a 0.7.3, restaura además el comando Node exacto de la configuración archivada de ese despliegue. **No restaures ni vacíes el volumen**: puedes resucitar secretos consumidos o permisos revocados. La limpieza de Git no borra etiquetas, historial ni imágenes publicadas.
+
+### Baseline Go revisado
+
+`release/rollback.json` fija Go 0.9.1 por digest, source, run e intento.
+La verificación exige publicación terminal verde del tag y certificado de ese
+run/intento; no acepta el último run ni campos libres de un predicate. La imagen
+0.9.1 histórica no declara labels del nuevo contrato: su admisión inicial requiere
+la identidad exacta y revisión del formato. Las candidatas nuevas deben declarar
+`secretdrop-meta-v1` y el digest exacto de la imagen con la que CI ensayó el retorno.
+
+El ensayo añade Go 0.9.1 → runtime OCI candidato → el mismo Go 0.9.1, conserva
+la regresión Node y comprueba contadores cero/parciales/finales, fechas en ms,
+lápidas sin criptograma, propietarios y revocaciones en ambos sentidos. Nunca
+restaura datos. Estas pruebas no activan una instalación ni autorizan releases.
+El versionado 0.9.x permite estudiar parches; una nueva minor 0.x, cambio de
+formato, UID, configuración, permisos o migración necesita revisión separada.

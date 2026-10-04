@@ -10,7 +10,8 @@ binary. Node is a build/test tool, never a production server.
 - Preserve millisecond timestamps, explicit counters, tombstones and revocations.
   One process per store; never restore spent secrets from backups.
 - Use isolated test stores. Keep HTTP/browser/restart tests and compatibility
-  against the exact published Node image, not a second maintained Node backend.
+  against both the exact reviewed Go rollback release and the published Node fixture,
+  not a second maintained Node backend.
 - Run npm run lint, npm run typecheck, npm test and relevant browser/image tests.
-- Do not publish, push or deploy without authorization; main pushes publish images.
+- Do not publish, push or deploy without authorization; only version tag pushes may publish the tested OCI artifact.
 - Preserve unrelated edits, including existing untracked documentation.

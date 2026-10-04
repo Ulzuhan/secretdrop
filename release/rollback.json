@@ -1,0 +1,8 @@
+{
+  "version": "0.9.1",
+  "digest": "sha256:2e8f8913d70105710c06e2d560b41b90bdc06480541cfa68c4dc18a9a4a1a7aa",
+  "source": "9e0c8b83ec7b94002f0c6af4d6994f55599acab1",
+  "run": 34618887641,
+  "attempt": 1,
+  "store_contract": "secretdrop-meta-v1"
+}
