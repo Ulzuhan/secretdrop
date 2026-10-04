@@ -17,6 +17,8 @@ export PUERTO_IDP="${PUERTO_IDP:-9995}"
 export CLIENT_ID="secretdrop-pruebas"
 WORK="$(mktemp -d)"
 LOG="$WORK/server.log"
+# The image launcher mounts only an existing isolated directory.
+mkdir -p "$WORK/almacen"
 
 EMISOR="http://127.0.0.1:$PUERTO_IDP/application/o/secretdrop"
 
