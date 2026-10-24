@@ -15,7 +15,7 @@ COPY src ./src
 COPY public ./public
 RUN npx vite build
 
-FROM golang:1.27.1-alpine AS build
+FROM golang:1.27.3-alpine AS build
 WORKDIR /src
 # Sin dependencias externas: no hay `go.sum` que verificar ni módulos que bajar.
 # Si algún día entra una, este build empezará a necesitar red y hay que verlo.
