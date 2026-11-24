@@ -33,7 +33,7 @@ The Next.js backend is no longer maintained in this tree. Historical source rema
 
 ## Run locally
 
-Requires Go 1.27.1 and Node.js 22 or newer.
+Requires Go 1.27.4 and Node.js 22 or newer.
 
 ```bash
 npm ci
