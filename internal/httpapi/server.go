@@ -406,8 +406,10 @@ var plantilla = template.Must(template.New("doc").Parse(
 	`<!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0b0c11">
+<meta name="color-scheme" content="light dark">
+<script nonce="{{.Nonce}}">(function(){try{var s=localStorage.getItem("color-scheme");if(s==="light"||s==="dark"){var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=s;}}catch(_){}})();</script>
+<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0c11" media="(prefers-color-scheme: dark)">
 <title>{{.Titulo}}</title>
 <meta name="description" content="{{.Descripcion}}">
 {{if .NoIndex}}<meta name="robots" content="noindex, nofollow">{{end}}

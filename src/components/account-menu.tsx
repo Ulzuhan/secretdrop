@@ -13,6 +13,14 @@ export function AccountMenu({ email, accountUrl }: { email: string; accountUrl: 
   const box = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const handle = email.split("@")[0] || email;
+  const toolsUrl = (() => {
+    if (!accountUrl) return null;
+    try {
+      return new URL("/", accountUrl).toString();
+    } catch {
+      return null;
+    }
+  })();
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +82,22 @@ export function AccountMenu({ email, accountUrl }: { email: string; accountUrl: 
             <span title={email}>{email}</span>
           </div>
           <div className="menu-sep" />
+          {toolsUrl && (
+            <a role="menuitem" href={toolsUrl} className="menu-item">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <rect x="4" y="4" width="4" height="4" rx="1" />
+                <rect x="10" y="4" width="4" height="4" rx="1" />
+                <rect x="16" y="4" width="4" height="4" rx="1" />
+                <rect x="4" y="10" width="4" height="4" rx="1" />
+                <rect x="10" y="10" width="4" height="4" rx="1" />
+                <rect x="16" y="10" width="4" height="4" rx="1" />
+                <rect x="4" y="16" width="4" height="4" rx="1" />
+                <rect x="10" y="16" width="4" height="4" rx="1" />
+                <rect x="16" y="16" width="4" height="4" rx="1" />
+              </svg>
+              Your tools
+            </a>
+          )}
           {accountUrl && (
             <a role="menuitem" href={accountUrl} target="_blank" rel="noreferrer" className="menu-item">
               <Icon name="external" size={16} />
