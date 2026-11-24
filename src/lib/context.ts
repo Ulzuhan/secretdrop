@@ -3,24 +3,29 @@
  * hay sesión y qué pantalla toca. El navegador sólo lo lee; deducirlo por su
  * cuenta sería inventarse una respuesta que sólo el servidor puede dar.
  */
-export type Page = "landing" | "tool" | "viewer";
+export type Page = "landing" | "tool" | "viewer" | "notfound";
 
 export interface AppContext {
   page: Page;
   email: string;
   enrollUrl: string | null;
   accountUrl: string | null;
+  sessionUrl: string | null;
   footerLinks: boolean;
 }
 
 export function readContext(root: HTMLElement): AppContext {
   const d = root.dataset;
-  const page: Page = d.page === "tool" || d.page === "viewer" ? d.page : "landing";
+  const page: Page =
+    d.page === "tool" || d.page === "viewer" || d.page === "notfound"
+      ? d.page
+      : "landing";
   return {
     page,
     email: d.email || "",
     enrollUrl: d.enrollUrl || null,
     accountUrl: d.accountUrl || null,
+    sessionUrl: d.sessionUrl || null,
     footerLinks: Boolean(d.footerLinks),
   };
 }
