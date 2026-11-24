@@ -7,15 +7,17 @@ import { AppSwitcher } from "./app-switcher";
  */
 export function Header({
   showSwitcher = false,
+  signedIn = false,
   children,
 }: {
   showSwitcher?: boolean;
+  signedIn?: boolean;
   children?: ReactNode;
 }) {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        {showSwitcher && <AppSwitcher current="secretdrop" />}
+        {showSwitcher && <AppSwitcher current="secretdrop" signedIn={signedIn} />}
         <a href="/" className="brand" title="SecretDrop">
           <img src="/kaicorp-mark.png" alt="" width={26} height={26} className="brand-mark" />
           <span className="brand-name">SecretDrop</span>

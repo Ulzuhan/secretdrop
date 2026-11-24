@@ -1,50 +1,148 @@
 /*
- * Los tokens de SecretDrop. Una sola paleta, oscura a propósito: es un sitio
- * donde se pegan contraseñas, y la penumbra es parte del mensaje.
- *
- * Dos acentos con significado, no de adorno:
- *   · ember  — lo que arde: la acción principal y el final del secreto.
- *   · mint   — lo cifrado, lo que está a salvo.
- * Todo lo demás es tinta sobre tinta, en oklch para que los grises no tiren a
- * marrón ni a azul según el monitor.
+ * Los tokens de SecretDrop en oklch con soporte claro + oscuro y preferencia
+ * del sistema (`color-scheme: light dark`).
  */
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
 
-  /* ── Tinta: superficies de más honda a más cercana ── */
-  --bg-0: oklch(12% 0.012 268);
-  --bg-1: oklch(15% 0.014 268);
-  --bg-2: oklch(18.5% 0.016 268);
-  --bg-3: oklch(23% 0.018 268);
-  --bg-glass: oklch(12% 0.012 268 / 72%);
+  --sd-bg-0-light: oklch(97.5% 0.004 268);
+  --sd-bg-0-dark: oklch(12% 0.012 268);
+  --sd-bg-1-light: oklch(100% 0 0);
+  --sd-bg-1-dark: oklch(15% 0.014 268);
+  --sd-bg-2-light: oklch(95.5% 0.006 268);
+  --sd-bg-2-dark: oklch(18.5% 0.016 268);
+  --sd-bg-3-light: oklch(91.5% 0.008 268);
+  --sd-bg-3-dark: oklch(23% 0.018 268);
+  --sd-bg-glass-light: oklch(98% 0.004 268 / 80%);
+  --sd-bg-glass-dark: oklch(12% 0.012 268 / 72%);
 
-  --line: oklch(100% 0 0 / 7%);
-  --line-strong: oklch(100% 0 0 / 13%);
-  --line-glow: oklch(100% 0 0 / 22%);
+  --sd-line-light: oklch(15% 0.012 268 / 10%);
+  --sd-line-dark: oklch(100% 0 0 / 7%);
+  --sd-line-strong-light: oklch(15% 0.012 268 / 18%);
+  --sd-line-strong-dark: oklch(100% 0 0 / 13%);
+  --sd-line-glow-light: oklch(15% 0.012 268 / 28%);
+  --sd-line-glow-dark: oklch(100% 0 0 / 22%);
 
-  --ink-1: oklch(96% 0.006 268);
-  --ink-2: oklch(78% 0.014 268);
-  --ink-3: oklch(60% 0.018 268);
-  --ink-4: oklch(44% 0.02 268);
+  --sd-ink-1-light: oklch(20% 0.016 268);
+  --sd-ink-1-dark: oklch(96% 0.006 268);
+  --sd-ink-2-light: oklch(40% 0.016 268);
+  --sd-ink-2-dark: oklch(78% 0.014 268);
+  --sd-ink-3-light: oklch(52% 0.016 268);
+  --sd-ink-3-dark: oklch(60% 0.018 268);
+  --sd-ink-4-light: oklch(64% 0.015 268);
+  --sd-ink-4-dark: oklch(44% 0.02 268);
 
-  /* ── Ember ── */
-  --ember: oklch(80% 0.155 64);
-  --ember-2: oklch(71% 0.185 40);
-  --ember-ink: oklch(20% 0.05 50);
-  --ember-soft: oklch(80% 0.155 64 / 12%);
-  --ember-line: oklch(80% 0.155 64 / 30%);
+  --sd-ember-light: oklch(58% 0.175 42);
+  --sd-ember-dark: oklch(80% 0.155 64);
+  --sd-ember-2-light: oklch(52% 0.185 36);
+  --sd-ember-2-dark: oklch(71% 0.185 40);
+  --sd-ember-ink-light: oklch(99% 0.004 60);
+  --sd-ember-ink-dark: oklch(20% 0.05 50);
+  --sd-ember-soft-light: oklch(58% 0.175 42 / 11%);
+  --sd-ember-soft-dark: oklch(80% 0.155 64 / 12%);
+  --sd-ember-line-light: oklch(58% 0.175 42 / 30%);
+  --sd-ember-line-dark: oklch(80% 0.155 64 / 30%);
+  --sd-ember-glow-light: oklch(58% 0.175 42 / 25%);
+  --sd-ember-glow-dark: oklch(76% 0.17 52 / 45%);
+
+  --sd-mint-light: oklch(52% 0.14 166);
+  --sd-mint-dark: oklch(85% 0.13 168);
+  --sd-mint-soft-light: oklch(52% 0.14 166 / 11%);
+  --sd-mint-soft-dark: oklch(85% 0.13 168 / 11%);
+  --sd-mint-line-light: oklch(52% 0.14 166 / 28%);
+  --sd-mint-line-dark: oklch(85% 0.13 168 / 28%);
+
+  --sd-danger-light: oklch(55% 0.2 25);
+  --sd-danger-dark: oklch(72% 0.18 24);
+  --sd-danger-soft-light: oklch(55% 0.2 25 / 11%);
+  --sd-danger-soft-dark: oklch(72% 0.18 24 / 12%);
+  --sd-danger-line-light: oklch(55% 0.2 25 / 30%);
+  --sd-danger-line-dark: oklch(72% 0.18 24 / 30%);
+
+  --bg-0: var(--sd-bg-0-light);
+  --bg-1: var(--sd-bg-1-light);
+  --bg-2: var(--sd-bg-2-light);
+  --bg-3: var(--sd-bg-3-light);
+  --bg-glass: var(--sd-bg-glass-light);
+  --line: var(--sd-line-light);
+  --line-strong: var(--sd-line-strong-light);
+  --line-glow: var(--sd-line-glow-light);
+  --ink-1: var(--sd-ink-1-light);
+  --ink-2: var(--sd-ink-2-light);
+  --ink-3: var(--sd-ink-3-light);
+  --ink-4: var(--sd-ink-4-light);
+  --ember: var(--sd-ember-light);
+  --ember-2: var(--sd-ember-2-light);
+  --ember-ink: var(--sd-ember-ink-light);
+  --ember-soft: var(--sd-ember-soft-light);
+  --ember-line: var(--sd-ember-line-light);
+  --ember-glow: var(--sd-ember-glow-light);
+  --mint: var(--sd-mint-light);
+  --mint-soft: var(--sd-mint-soft-light);
+  --mint-line: var(--sd-mint-line-light);
+  --danger: var(--sd-danger-light);
+  --danger-soft: var(--sd-danger-soft-light);
+  --danger-line: var(--sd-danger-line-light);
+  --shadow-1: 0 1px 2px oklch(20% 0.02 268 / 8%), 0 8px 24px -12px oklch(20% 0.02 268 / 14%);
+  --shadow-2: 0 1px 3px oklch(20% 0.02 268 / 8%), 0 22px 50px -24px oklch(20% 0.02 268 / 22%);
+
+  @media (prefers-color-scheme: dark) {
+    --bg-0: var(--sd-bg-0-dark);
+    --bg-1: var(--sd-bg-1-dark);
+    --bg-2: var(--sd-bg-2-dark);
+    --bg-3: var(--sd-bg-3-dark);
+    --bg-glass: var(--sd-bg-glass-dark);
+    --line: var(--sd-line-dark);
+    --line-strong: var(--sd-line-strong-dark);
+    --line-glow: var(--sd-line-glow-dark);
+    --ink-1: var(--sd-ink-1-dark);
+    --ink-2: var(--sd-ink-2-dark);
+    --ink-3: var(--sd-ink-3-dark);
+    --ink-4: var(--sd-ink-4-dark);
+    --ember: var(--sd-ember-dark);
+    --ember-2: var(--sd-ember-2-dark);
+    --ember-ink: var(--sd-ember-ink-dark);
+    --ember-soft: var(--sd-ember-soft-dark);
+    --ember-line: var(--sd-ember-line-dark);
+    --ember-glow: var(--sd-ember-glow-dark);
+    --mint: var(--sd-mint-dark);
+    --mint-soft: var(--sd-mint-soft-dark);
+    --mint-line: var(--sd-mint-line-dark);
+    --danger: var(--sd-danger-dark);
+    --danger-soft: var(--sd-danger-soft-dark);
+    --danger-line: var(--sd-danger-line-dark);
+    --shadow-1: 0 1px 2px oklch(0% 0 0 / 30%), 0 8px 24px -12px oklch(0% 0 0 / 50%);
+    --shadow-2: 0 1px 0 oklch(100% 0 0 / 4%) inset, 0 24px 60px -24px oklch(0% 0 0 / 70%);
+  }
+
+  @supports (color: light-dark(white, black)) {
+    --bg-0: light-dark(var(--sd-bg-0-light), var(--sd-bg-0-dark));
+    --bg-1: light-dark(var(--sd-bg-1-light), var(--sd-bg-1-dark));
+    --bg-2: light-dark(var(--sd-bg-2-light), var(--sd-bg-2-dark));
+    --bg-3: light-dark(var(--sd-bg-3-light), var(--sd-bg-3-dark));
+    --bg-glass: light-dark(var(--sd-bg-glass-light), var(--sd-bg-glass-dark));
+    --line: light-dark(var(--sd-line-light), var(--sd-line-dark));
+    --line-strong: light-dark(var(--sd-line-strong-light), var(--sd-line-strong-dark));
+    --line-glow: light-dark(var(--sd-line-glow-light), var(--sd-line-glow-dark));
+    --ink-1: light-dark(var(--sd-ink-1-light), var(--sd-ink-1-dark));
+    --ink-2: light-dark(var(--sd-ink-2-light), var(--sd-ink-2-dark));
+    --ink-3: light-dark(var(--sd-ink-3-light), var(--sd-ink-3-dark));
+    --ink-4: light-dark(var(--sd-ink-4-light), var(--sd-ink-4-dark));
+    --ember: light-dark(var(--sd-ember-light), var(--sd-ember-dark));
+    --ember-2: light-dark(var(--sd-ember-2-light), var(--sd-ember-2-dark));
+    --ember-ink: light-dark(var(--sd-ember-ink-light), var(--sd-ember-ink-dark));
+    --ember-soft: light-dark(var(--sd-ember-soft-light), var(--sd-ember-soft-dark));
+    --ember-line: light-dark(var(--sd-ember-line-light), var(--sd-ember-line-dark));
+    --ember-glow: light-dark(var(--sd-ember-glow-light), var(--sd-ember-glow-dark));
+    --mint: light-dark(var(--sd-mint-light), var(--sd-mint-dark));
+    --mint-soft: light-dark(var(--sd-mint-soft-light), var(--sd-mint-soft-dark));
+    --mint-line: light-dark(var(--sd-mint-line-light), var(--sd-mint-line-dark));
+    --danger: light-dark(var(--sd-danger-light), var(--sd-danger-dark));
+    --danger-soft: light-dark(var(--sd-danger-soft-light), var(--sd-danger-soft-dark));
+    --danger-line: light-dark(var(--sd-danger-line-light), var(--sd-danger-line-dark));
+  }
+
   --ember-grad: linear-gradient(135deg, var(--ember) 0%, var(--ember-2) 100%);
-  --ember-glow: oklch(76% 0.17 52 / 45%);
-
-  /* ── Mint ── */
-  --mint: oklch(85% 0.13 168);
-  --mint-soft: oklch(85% 0.13 168 / 11%);
-  --mint-line: oklch(85% 0.13 168 / 28%);
-
-  /* ── Semánticos ── */
-  --danger: oklch(72% 0.18 24);
-  --danger-soft: oklch(72% 0.18 24 / 12%);
-  --danger-line: oklch(72% 0.18 24 / 30%);
   --warn: var(--ember);
 
   /* ── Tipografía ── */
@@ -58,9 +156,6 @@
   --r-lg: 18px;
   --r-xl: 26px;
 
-  --shadow-1: 0 1px 2px oklch(0% 0 0 / 30%), 0 8px 24px -12px oklch(0% 0 0 / 50%);
-  --shadow-2: 0 1px 0 oklch(100% 0 0 / 4%) inset, 0 24px 60px -24px oklch(0% 0 0 / 70%);
-
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur: 200ms;
@@ -69,4 +164,16 @@
   --container: 74rem;
   --container-narrow: 40rem;
   --gutter: clamp(1.1rem, 4vw, 2rem);
+}
+
+:root:has(> head > meta[name="color-scheme"][content="dark"]) {
+  color-scheme: dark;
+  --shadow-1: 0 1px 2px oklch(0% 0 0 / 30%), 0 8px 24px -12px oklch(0% 0 0 / 50%);
+  --shadow-2: 0 1px 0 oklch(100% 0 0 / 4%) inset, 0 24px 60px -24px oklch(0% 0 0 / 70%);
+}
+
+:root:has(> head > meta[name="color-scheme"][content="light"]) {
+  color-scheme: light;
+  --shadow-1: 0 1px 2px oklch(20% 0.02 268 / 8%), 0 8px 24px -12px oklch(20% 0.02 268 / 14%);
+  --shadow-2: 0 1px 3px oklch(20% 0.02 268 / 8%), 0 22px 50px -24px oklch(20% 0.02 268 / 22%);
 }
