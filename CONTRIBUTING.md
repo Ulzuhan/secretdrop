@@ -4,7 +4,7 @@ The maintained application is React + Go. Keep server code in `internal/` and `c
 
 ## Tools and commands
 
-Use Go 1.27.1, Node.js 22+, npm, Bash, curl, OpenSSL and `ss` (iproute2 on Linux). Docker is needed for compatibility and final-image checks. Install dependencies with `npm ci`.
+Use Go 1.27.4, Node.js 22+, npm, Bash, curl, OpenSSL and `ss` (iproute2 on Linux). Docker is needed for compatibility and final-image checks. Install dependencies with `npm ci`.
 
 ```bash
 npm run lint

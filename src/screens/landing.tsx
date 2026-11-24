@@ -1,5 +1,9 @@
 import { useState, type PointerEvent } from "react";
 import { LifecycleDemo } from "../components/lifecycle-demo";
+import {
+  clearLandingSessionSuppression,
+  useLandingSession,
+} from "../lib/use-landing-session";
 import { Icon, type IconName } from "../ui/icons";
 
 /**
@@ -7,7 +11,14 @@ import { Icon, type IconName } from "../ui/icons";
  * del entorno: sin él no hay botón de alta y entrar pasa a ser la acción
  * principal, que es la única que lleva a alguna parte.
  */
-export function Landing({ enrollUrl }: { enrollUrl: string | null }) {
+export function Landing({
+  enrollUrl,
+  sessionUrl = null,
+}: {
+  enrollUrl: string | null;
+  sessionUrl?: string | null;
+}) {
+  const sessionState = useLandingSession(sessionUrl, "/api/auth/login");
   const [signinFailed, setSigninFailed] = useState(
     () => new URLSearchParams(window.location.search).get("error") === "signin",
   );
@@ -47,25 +58,59 @@ export function Landing({ enrollUrl }: { enrollUrl: string | null }) {
             </p>
 
             <div className="hero-actions rise" style={{ "--i": 3 } as React.CSSProperties}>
-              {enrollUrl ? (
-                <>
-                  <a href={enrollUrl} className="btn btn-primary btn-lg">
-                    Request an account
+              {!sessionState ? (
+                enrollUrl ? (
+                  <>
+                    <a href={enrollUrl} className="btn btn-primary btn-lg">
+                      Request an account
+                      <Icon name="arrow" size={18} />
+                    </a>
+                    <a href="/api/auth/login" className="btn btn-secondary btn-lg">
+                      Sign in
+                    </a>
+                  </>
+                ) : (
+                  <a href="/api/auth/login" className="btn btn-primary btn-lg">
+                    Sign in
                     <Icon name="arrow" size={18} />
                   </a>
-                  <a href="/api/auth/login" className="btn btn-secondary btn-lg">
-                    Sign in
-                  </a>
-                </>
+                )
+              ) : sessionState.kind === "continue" ? (
+                <a
+                  href="/api/auth/login"
+                  onClick={clearLandingSessionSuppression}
+                  className="btn btn-primary btn-lg"
+                >
+                  Continue as {sessionState.name}
+                  <Icon name="arrow" size={18} />
+                </a>
               ) : (
-                <a href="/api/auth/login" className="btn btn-primary btn-lg">
-                  Sign in
+                <a
+                  href={sessionState.accountUrl}
+                  className={`btn btn-lg ${sessionState.kind === "requestable" ? "btn-primary" : "btn-secondary"}`}
+                >
+                  {sessionState.kind === "requestable"
+                    ? "Ask for access"
+                    : sessionState.kind === "pending"
+                      ? "View request"
+                      : "Your account"}
                   <Icon name="arrow" size={18} />
                 </a>
               )}
             </div>
 
             <div className="hero-fineprint rise" style={{ "--i": 4 } as React.CSSProperties}>
+              {sessionState && (
+                <span>
+                  <Icon name="check" size={14} />
+                  Signed in as {sessionState.name}
+                  {sessionState.kind === "pending"
+                    ? " · Waiting for approval"
+                    : sessionState.kind === "invite_only"
+                      ? " · By invitation only"
+                      : ""}
+                </span>
+              )}
               <span>
                 <Icon name="check" size={14} />
                 Opening a secret needs no account. Only creating one does.

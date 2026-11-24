@@ -48,6 +48,11 @@ func (s *Server) borrarCookie(w http.ResponseWriter, nombre string) {
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	next := auth.SafeNext(r.URL.Query().Get("next"))
+	if s.cuenta(r) != nil {
+		http.Redirect(w, r, next, http.StatusFound)
+		return
+	}
 	if s.oidc == nil {
 		escribirJSON(w, http.StatusServiceUnavailable,
 			map[string]any{"error": "Sign-in is not configured on this instance"})
@@ -63,9 +68,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		escribirJSON(w, http.StatusInternalServerError, map[string]any{"error": "Sign-in unavailable"})
 		return
 	}
-	// Sólo rutas internas: un enlace con ?next=https://otro convertiría el
-	// inicio de sesión en un redirector a donde quisiera quien lo mandara.
-	next := auth.SafeNext(r.URL.Query().Get("next"))
 
 	destino, err := s.discovery.AuthorizeURL(r.Context(), s.oidc, state, auth.ChallengeFor(verifier))
 	if err != nil {
@@ -138,7 +140,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.borrarCookie(w, auth.CookieName)
-	next := "/"
+	next := "/?signed_out=1"
 	if s.oidc != nil {
 		if e, err := s.discovery.Discover(r.Context(), s.oidc); err == nil && e.EndSession != "" {
 			next = e.EndSession

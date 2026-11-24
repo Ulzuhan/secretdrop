@@ -12,8 +12,10 @@ import (
 	"errors"
 	"html/template"
 	"io"
+	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -113,7 +115,23 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /", s.portada)
 	// Las cabeceras van en una sola capa: si cada manejador pusiera las suyas,
 	// la que se olvidara no fallaría ninguna prueba hasta que alguien mirara.
-	return conCabeceras(mux)
+	return conCabeceras(s.conRecuperacion(mux))
+}
+
+func (s *Server) conRecuperacion(siguiente http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Printf("panic en %s %s: %v", r.Method, r.URL.Path, rec)
+				if strings.HasPrefix(r.URL.Path, "/api/") {
+					escribirJSON(w, http.StatusInternalServerError, map[string]any{"error": "Internal server error"})
+					return
+				}
+				s.paginaError(w, http.StatusInternalServerError, "500", "Something went wrong", "The page could not be loaded right now.")
+			}
+		}()
+		siguiente.ServeHTTP(w, r)
+	})
 }
 
 // Las mismas que declaraba `next.config.ts`, en todas las respuestas.
@@ -135,19 +153,51 @@ func conCabeceras(siguiente http.Handler) http.Handler {
 //
 // Sin `unsafe-eval`: en desarrollo Next lo añadía, y aquí no hay desarrollo que
 // valga —el binario que se prueba es el que se despliega—.
-func csp() (string, string) {
+func sessionURL() string {
+	raw := strings.TrimSpace(os.Getenv("SECRETDROP_ACCOUNT_SESSION_URL"))
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.User != nil || u.Host == "" {
+		return ""
+	}
+	h := strings.ToLower(u.Hostname())
+	loopback := h == "127.0.0.1" || h == "localhost" || h == "::1"
+	if u.Scheme != "https" && !(loopback && u.Scheme == "http") {
+		return ""
+	}
+	return u.String()
+}
+
+func sessionOrigin(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
+}
+
+func csp(extraConnect string) (string, string) {
 	crudo := make([]byte, 16)
 	if _, err := rand.Read(crudo); err != nil {
 		return "", ""
 	}
 	nonce := base64.StdEncoding.EncodeToString(crudo)
+	connectSrc := "connect-src 'self'"
+	if extraConnect != "" {
+		connectSrc += " " + extraConnect
+	}
 	return strings.Join([]string{
 		"default-src 'self'",
 		"script-src 'self' 'nonce-" + nonce + "' 'strict-dynamic'",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",
-		"connect-src 'self'",
+		connectSrc,
 		"object-src 'none'",
 		"base-uri 'none'",
 		"form-action 'self'",
@@ -156,7 +206,11 @@ func csp() (string, string) {
 }
 
 func (s *Server) html(w http.ResponseWriter, estado int) string {
-	politica, nonce := csp()
+	extra := ""
+	if s.oidc != nil {
+		extra = sessionOrigin(sessionURL())
+	}
+	politica, nonce := csp(extra)
 	h := w.Header()
 	h.Set("Content-Type", "text/html; charset=utf-8")
 	h.Set("Cache-Control", "no-store")
@@ -183,11 +237,35 @@ func (s *Server) salud(w http.ResponseWriter, r *http.Request) {
 // de alta hacia el proveedor de un desconocido. Sin variable no hay botón.
 func (s *Server) portada(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		escribirJSON(w, http.StatusNotFound, map[string]any{"error": "Not found"})
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			escribirJSON(w, http.StatusNotFound, map[string]any{"error": "Not found"})
+			return
+		}
+		if s.recursos.JS != "" {
+			s.documentoConEstado(w, r, http.StatusNotFound, datos{
+				Pagina:      "notfound",
+				NoIndex:     true,
+				Titulo:      "Not found — SecretDrop",
+				Descripcion: "There is nothing at this address.",
+			})
+			return
+		}
+		s.paginaError(w, http.StatusNotFound, "404", "Nothing at this address", "The link may be mistyped, or there is nothing here.")
 		return
 	}
+	cuenta := s.cuenta(r)
+	if r.URL.Query().Get("sso") == "1" {
+		if cuenta != nil {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		if s.oidc != nil {
+			http.Redirect(w, r, "/api/auth/login", http.StatusFound)
+			return
+		}
+	}
 	pantalla, correo := "landing", ""
-	if cuenta := s.cuenta(r); cuenta != nil {
+	if cuenta != nil {
 		pantalla, correo = "tool", cuenta.Email
 	}
 	s.documento(w, r, datos{
@@ -195,6 +273,23 @@ func (s *Server) portada(w http.ResponseWriter, r *http.Request) {
 		Titulo:      "SecretDrop — one-time secrets, encrypted in your browser",
 		Descripcion: "Share a password once: encrypted before it leaves your browser, burned the moment it is read. The server only ever sees ciphertext. Self-hosted and open source.",
 		Canonica:    s.canonica("/"),
+	})
+}
+
+var plantillaError = template.Must(template.New("error").Parse(`<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>{{.Titulo}} — SecretDrop</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0c11;color:#e6e8ef;font:400 16px/1.6 system-ui,sans-serif;padding:2rem}main{max-width:30rem;text-align:center;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:2rem;background:#12141d}p.k{margin:0 0 .5rem;font:500 12px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#949bb0}h1{margin:0 0 .75rem;font-size:1.5rem}p{margin:0 0 1.4rem;color:#949bb0}a{display:inline-block;padding:.55rem 1rem;border-radius:10px;background:#ff7a45;color:#120a06;font-weight:600;text-decoration:none}</style>
+</head><body><main><p class="k">{{.Codigo}}</p><h1>{{.Titulo}}</h1><p>{{.Mensaje}}</p><a href="/">Go to SecretDrop</a></main></body></html>`))
+
+func (s *Server) paginaError(w http.ResponseWriter, estado int, codigo, titulo, mensaje string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(estado)
+	_ = plantillaError.Execute(w, map[string]string{
+		"Codigo":  codigo,
+		"Titulo":  titulo,
+		"Mensaje": mensaje,
 	})
 }
 
@@ -269,18 +364,22 @@ func (s *Server) canonica(ruta string) string {
 }
 
 type datos struct {
-	Pagina, Email, SecretID    string
-	Titulo, Descripcion        string
-	Canonica                   string
-	NoIndex                    bool
-	Nonce, JS, Alta, CuentaURL string
-	Imagen                     string
-	Footer                     bool
-	CSS                        []string
+	Pagina, Email, SecretID                string
+	Titulo, Descripcion                    string
+	Canonica                               string
+	NoIndex                                bool
+	Nonce, JS, Alta, CuentaURL, SessionURL string
+	Imagen                                 string
+	Footer                                 bool
+	CSS                                    []string
 }
 
 func (s *Server) documento(w http.ResponseWriter, r *http.Request, d datos) {
-	d.Nonce = s.html(w, http.StatusOK)
+	s.documentoConEstado(w, r, http.StatusOK, d)
+}
+
+func (s *Server) documentoConEstado(w http.ResponseWriter, r *http.Request, estado int, d datos) {
+	d.Nonce = s.html(w, estado)
 	d.JS, d.CSS = s.recursos.JS, s.recursos.CSS
 	// Como en Next: la tarjeta sólo declara imagen si hay host público con el
 	// que construir una URL absoluta. Una og:image relativa no la resuelve
@@ -290,6 +389,9 @@ func (s *Server) documento(w http.ResponseWriter, r *http.Request, d datos) {
 	}
 	d.Alta = os.Getenv("SECRETDROP_ENROLL_URL")
 	d.CuentaURL = os.Getenv("SECRETDROP_ACCOUNT_URL")
+	if s.oidc != nil {
+		d.SessionURL = sessionURL()
+	}
 	// El pie común enseña los enlaces al resto de servicios sólo si el
 	// despliegue los pide. En Next lo leía el propio componente, que allí es de
 	// servidor; aquí el componente corre en el navegador y no tiene entorno, así
@@ -304,8 +406,10 @@ var plantilla = template.Must(template.New("doc").Parse(
 	`<!doctype html><html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0b0c11">
+<meta name="color-scheme" content="light dark">
+<script nonce="{{.Nonce}}">(function(){try{var s=localStorage.getItem("color-scheme");if(s==="light"||s==="dark"){var m=document.querySelector('meta[name="color-scheme"]');if(m)m.content=s;}}catch(_){}})();</script>
+<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0c11" media="(prefers-color-scheme: dark)">
 <title>{{.Titulo}}</title>
 <meta name="description" content="{{.Descripcion}}">
 {{if .NoIndex}}<meta name="robots" content="noindex, nofollow">{{end}}
@@ -325,7 +429,7 @@ var plantilla = template.Must(template.New("doc").Parse(
 {{end}}</head>
 <body>
 <noscript><p style="margin:2rem;font:16px system-ui,sans-serif;color:#e6e8ef">SecretDrop encrypts and decrypts in your browser, so it needs JavaScript enabled.</p></noscript>
-<div id="app" data-page="{{.Pagina}}"{{if .Email}} data-email="{{.Email}}"{{end}}{{if .SecretID}} data-secret-id="{{.SecretID}}"{{end}}{{if .Alta}} data-enroll-url="{{.Alta}}"{{end}}{{if .CuentaURL}} data-account-url="{{.CuentaURL}}"{{end}}{{if .Footer}} data-footer-links="on"{{end}}></div>
+<div id="app" data-page="{{.Pagina}}"{{if .Email}} data-email="{{.Email}}"{{end}}{{if .SecretID}} data-secret-id="{{.SecretID}}"{{end}}{{if .Alta}} data-enroll-url="{{.Alta}}"{{end}}{{if .CuentaURL}} data-account-url="{{.CuentaURL}}"{{end}}{{if .SessionURL}} data-session-url="{{.SessionURL}}"{{end}}{{if .Footer}} data-footer-links="on"{{end}}></div>
 {{if .JS}}<script type="module" nonce="{{.Nonce}}" src="{{.JS}}"></script>{{end}}
 </body></html>
 `))
