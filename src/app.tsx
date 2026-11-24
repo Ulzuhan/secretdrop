@@ -12,7 +12,7 @@ export function App({ ctx }: { ctx: AppContext }) {
   return (
     <>
       <Backdrop />
-      <Header>
+      <Header showSwitcher={ctx.footerLinks}>
         {ctx.page === "tool" && ctx.email ? (
           <AccountMenu email={ctx.email} accountUrl={ctx.accountUrl} />
         ) : ctx.page === "landing" ? (

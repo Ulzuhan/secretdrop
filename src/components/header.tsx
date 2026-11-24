@@ -1,24 +1,25 @@
 import type { ReactNode } from "react";
+import { AppSwitcher } from "./app-switcher";
 
 /**
- * La cabecera. La marca lleva a KaiCorp Labs y el nombre del servicio a su
- * portada; el hueco de la derecha lo llena cada pantalla con lo suyo.
+ * La cabecera. El icono + nombre del servicio siempre llevan a `/` de la app;
+ * el selector de aplicaciones a su izquierda conecta con el resto de KaiCorp Labs.
  */
-export function Header({ children }: { children?: ReactNode }) {
+export function Header({
+  showSwitcher = false,
+  children,
+}: {
+  showSwitcher?: boolean;
+  children?: ReactNode;
+}) {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <div className="brand">
-          <a href="https://kaicorplabs.com" className="brand-home" title="KaiCorp Labs">
-            <img src="/kaicorp-mark.png" alt="KaiCorp Labs" width={26} height={26} className="brand-mark" />
-          </a>
-          <span className="brand-sep" aria-hidden="true">
-            /
-          </span>
-          <a href="/" className="brand-name">
-            SecretDrop
-          </a>
-        </div>
+        {showSwitcher && <AppSwitcher current="secretdrop" />}
+        <a href="/" className="brand" title="SecretDrop">
+          <img src="/kaicorp-mark.png" alt="" width={26} height={26} className="brand-mark" />
+          <span className="brand-name">SecretDrop</span>
+        </a>
         {children ? <div className="site-header-actions">{children}</div> : null}
       </div>
     </header>

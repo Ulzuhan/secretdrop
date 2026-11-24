@@ -1,9 +1,8 @@
 import { Icon } from "../ui/icons";
 
 /**
- * El pie. Los enlaces al resto de servicios sólo si quien opera la instancia
- * lo pide (KAICORP_FOOTER_LINKS): en un despliegue ajeno serían publicidad de
- * servicios de otro. La decisión la toma el servidor y llega como atributo.
+ * El pie unificado de KaiCorp Labs.
+ * Los enlaces al resto de servicios + Account + Privacy sólo si KAICORP_FOOTER_LINKS está activo.
  */
 const SERVICES = [
   { name: "TabUp", url: "https://tabup.kaicorplabs.com", slug: "tabup" },
@@ -26,10 +25,10 @@ export function Footer({ showLinks }: { showLinks: boolean }) {
         </a>
 
         {showLinks && (
-          <nav className="footer-nav" aria-label="Other services">
+          <nav className="footer-nav" aria-label="KaiCorp Labs services">
             {SERVICES.map((s) =>
               s.slug === "secretdrop" ? (
-                <span key={s.slug} aria-current="page">
+                <span key={s.slug} aria-current="page" className="footer-current">
                   {s.name}
                 </span>
               ) : (
@@ -38,9 +37,15 @@ export function Footer({ showLinks }: { showLinks: boolean }) {
                 </a>
               ),
             )}
+            <span className="footer-sep" aria-hidden="true">
+              ·
+            </span>
+            <a href="https://account.kaicorplabs.com/">Account</a>
+            <a href="https://kaicorplabs.com/privacy/">Privacy</a>
           </nav>
         )}
-
+      </div>
+      <div className="site-footer-sub">
         <span className="footer-note">
           <Icon name="lock" size={13} />
           Encrypted in your browser · <a href="https://github.com/Ulzuhan/secretdrop">Open source</a>
