@@ -1,8 +1,8 @@
 {
-  "version": "0.9.1",
-  "digest": "sha256:2e8f8913d70105710c06e2d560b41b90bdc06480541cfa68c4dc18a9a4a1a7aa",
-  "source": "9e0c8b83ec7b94002f0c6af4d6994f55599acab1",
-  "run": 34618887641,
+  "version": "0.9.3",
+  "digest": "sha256:e19ba37223a8cd340a40316b3f56ee7cb0bd546c7b6e9c4536e6a1f0a4e0169b",
+  "source": "9fd3ed70ebd52acf2e12fdb83634aa35b51a5502",
+  "run": 45533242612,
   "attempt": 1,
   "store_contract": "secretdrop-meta-v1"
 }
