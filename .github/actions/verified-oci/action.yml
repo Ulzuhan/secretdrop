@@ -1,5 +1,5 @@
 name: Build and verify one SecretDrop OCI artifact
-description: One native-arch build, exact runtime suites, rollback pairs (amd64) and unchanged Trivy gate; never publishes
+description: One native-arch build, exact runtime suites, native Go rollback pair, amd64 legacy pair, unchanged Trivy gate; never publishes
 inputs:
   arch:
     description: Target CPU architecture (amd64 or arm64)
@@ -102,9 +102,10 @@ runs:
         SECRETDROP_COMPAT_GO="env SECRETDROP_TEST_IMAGE=$SECRETDROP_TEST_IMAGE bash scripts/lanzar-imagen.sh" \
           SECRETDROP_TEST_IMAGE=ghcr.io/ulzuhan/secretdrop:0.7.3@sha256:4103ac55664ce49d81bf7b38c6cccbee47d06f7e339ed477398c4be1b7065e2d \
           bash scripts/test-compatibilidad.sh
-    - if: inputs.arch == 'amd64'
-      name: Reviewed Go rollback release against the gated image
+    - name: Reviewed Go rollback release against the gated native image
       shell: bash
+      env:
+        SECRETDROP_TEST_ARCH: ${{ inputs.arch }}
       run: bash scripts/test-rollback-imagen.sh
     - name: Runtime is uid 10001 and has no Node
       shell: bash
